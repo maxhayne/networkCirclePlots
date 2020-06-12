@@ -1,0 +1,3 @@
+find . -type d -cmin -10 2>&1 | grep -v "Permission denied" | xargs -d '\n' rm -r
+
+Use this command, while changing the number 10 to whatever time frame you want. -10 will find anything that has been modified in the last 10 minutes.

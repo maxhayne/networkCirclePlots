@@ -469,15 +469,19 @@ MakeCircs <- function(outlierFile, fileType=".png", sortKey="ip", orientation="l
       circos.trackPlotRegion(ylim = yRange, force.ylim = TRUE, bg.border = "#BDBDBD")
       # Source sector uses #ffff66, which is less intense than "yellow", but slightly more intense than #ffff99
       circos.updatePlotRegion(sector.index = 1, track.index = 1, bg.col = "#ffff66", bg.border = "#BDBDBD")
-      for (j in 1:nrow(connections)) {
-        #currentFactor <- dataTableMapping[.(connections$DIP[j]), nomatch = 0L]$sector[1]
-        currentFactor <- (connectionMapping %>% filter(DIP==connections$DIP[j]))$sector[1]
-        circos.points(x = connections$TEND[j], y = connections$PacketCount[j], sector.index = 1, col = "#7B3294", pch = 20)
-        if (connections$RPacketCount[j] != 0) {
-          circos.points(x = connections$TEND[j], y = connections$RPacketCount[j], sector.index = currentFactor, col = "#7B3294", pch = 20)
-          circos.link(currentFactor, connections$TEND[j], 1, connections$TEND[j], col = "#5AB4AC")
-        } else {
-          circos.link(currentFactor, connections$TEND[j], 1, connections$TEND[j], col = "#D8B365")
+      # Just do a for loop on the connectionMapping and then filter connections based on that
+      for (j in 1:nrow(connectionMapping)) {
+        currentSector <- connectionMapping$sector[j]
+        dipConnections <- connections %>% filter(DIP==connectionMapping$DIP[j])
+        connections <- connections %>% filter(DIP != connectionMapping$DIP[j])
+        for (k in 1:nrow(dipConnections)) {
+          circos.points(x = dipConnections$TEND[k], y = dipConnections$PacketCount[k], sector.index = 1, col = "#7B3294", pch = 20)
+          if (dipConnections$RPacketCount[k] != 0) {
+            circos.points(x = dipConnections$TEND[k], y = dipConnections$RPacketCount[k], sector.index = currentSector, col = "#7B3294", pch = 20)
+            circos.link(currentSector, dipConnections$TEND[k], 1, dipConnections$TEND[k], col = "#5AB4AC")
+          } else {
+            circos.link(currentSector, dipConnections$TEND[k], 1, dipConnections$TEND[k], col = "#D8B365")
+          }
         }
       }
     }
@@ -549,6 +553,6 @@ MakeCircs <- function(outlierFile, fileType=".png", sortKey="ip", orientation="l
 
 # Calling the MakeCircs function
 # For time-keeping purposes
-MakeCircs(outlierFile, fileType, sortType, fast=TRUE, mask="/16")
+MakeCircs(outlierFile, fileType, sortType, fast=FALSE, mask="/16")
 #MakeCircs("/data/circlePlots/old/26453522_outliers.tsv", ".png", "cluster")
 toc()

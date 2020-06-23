@@ -40,9 +40,9 @@ suppressMessages(library(png))
 suppressMessages(library(ggplot2))
 suppressMessages(library(gridExtra))
 suppressMessages(library(stringr))
-suppressMessages(library(data.table))
 suppressMessages(library(vroom))
 suppressMessages(library(pracma))
+suppressMessages(library(gtable))
 
 # For verisons of the code that are loaded once, but are query the database periodically, this may be a good solution.
 # As it stands, for one-time-use, compiling the small cpp function takes 6 seconds, which is just too long.
@@ -56,8 +56,10 @@ coreCount <- detectCores()
 registerDoParallel(cores=coreCount-4) # May be using too many cores... but so much power!!
 print(paste("Number of cores:",coreCount-4))
 
+# FINISHED -- Not Orthogonally, but bending with the edge of the circle. This prevents labels from intersecting with other plots
 # Add Destination IPs jutting out orthogonally from the perimeter of the circle's sectors
 
+# Tried figuring this out with doMPI, was much slower than doParallel
 # Figure out how to feed iterations of the for-loop to available threads on the fly. If the loop iterations
 # are chunked, and each core is fed a chunk, the worst chunk could contain 4 plots that are very time consuming
 # to draw. Therefore, the speedup wouldn't be optimal.
@@ -90,6 +92,28 @@ print(paste("Number of cores:",coreCount-4))
 # Originally taken from https://stackoverflow.com/questions/26512404/converting-ip-addresses-in-r
 # Author: 'hrbrmstr'
 
+maskIP <- function(ip, mask) {
+  if (mask == "/0") {
+    masked <- "X.X.X.X"
+  } else if (mask == "/8") {
+    splitIP <- str_split(ip, "\\.")
+    maskedIP <- paste0(splitIP[[1]][1],".X.X.X")
+  } else if (mask == "/16") {
+    splitIP <- str_split(ip, "\\.")
+    masked <- paste0(splitIP[[1]][1],".",splitIP[[1]][2],".X.X")
+  } else if (mask == "/24") {
+    splitIP <- str_split(ip, "\\.")
+    masked <- paste0(splitIP[[1]][1],".",splitIP[[1]][2],".",splitIP[[1]][3],".X")
+  } else if (mask == "/32"){
+    # Do nothing, show source fully
+    masked <- ip
+  } else {
+    print("maskIP: Mask doesn't match '/0', '/8', '/16', or '/24', masking all ('/0') by default.")
+    masked <- "X.X.X.X"
+  }
+  return(masked)
+}
+
 ip2long <- function(ip) {
   # convert string into vector of characters
   parts <- unlist(strsplit(ip, '.', fixed=TRUE))
@@ -99,7 +123,7 @@ ip2long <- function(ip) {
   Reduce(octets, as.integer(parts))
 }
 
-MakeCircs <- function(outlierFile, fileType=".png", sortKey="ip", orientation="l", fast=TRUE, mask="/0") {
+MakeCircs <- function(outlierFile, fileType=".png", sortKey="ip", orientation="l", fast=TRUE, mask="/0", title=NULL, labels=FALSE) {
 
   dataFile <- gsub("outliers", "InOut", outlierFile)
   if (!file.exists(outlierFile)) {
@@ -134,11 +158,8 @@ MakeCircs <- function(outlierFile, fileType=".png", sortKey="ip", orientation="l
     }
   }
   
-  # Grab the column of SIPs from the outliers dataframe
-  uniqueSources <- outliers # %>% select(SIP)
-  sourceCount <- (uniqueSources %>% tally())$n[1] # For formatting
-  
   # Formatting rows and columns of circle plots in a grid
+  sourceCount <- (outliers %>% tally())$n[1]
   rows = ceiling(sqrt(sourceCount))
   cols = ceiling(sourceCount/rows)
   
@@ -146,18 +167,23 @@ MakeCircs <- function(outlierFile, fileType=".png", sortKey="ip", orientation="l
   filePath <- dirname(outlierFile)
   setwd(filePath)
   
+  # Title the page based on input passed from the user, else, title the page based on the epoch mintue in the file name
   # Taking epoch minute portion of filename, multiplying by 60 to get epoch seconds, passing to anytime() to get date and time
   # If this process doesn't work, title the page the name of the outliers file
   file <- file_path_sans_ext(basename(outlierFile)) # grabbing outliers file name
-  plotsTitle <- tryCatch(
-    {
-      anytime(as.integer(strsplit(file, split = "_")[[1]][1])*60)
-    }, error = function(cond) {
-      outlierFile
-    }, warning = function(cond) {
-      outlierFile
-    }
-  )
+  if (is.null(title)) {
+    plotsTitle <- tryCatch(
+      {
+        anytime(as.integer(strsplit(file, split = "_")[[1]][1])*60)
+      }, error = function(cond) {
+        outlierFile
+      }, warning = function(cond) {
+        outlierFile
+      }
+    )
+  } else {
+    plotsTitle <- title
+  }
   
   #Creating image file title to which plots will be saved
   fileCombined <- paste0(file,fileType)
@@ -198,17 +224,17 @@ MakeCircs <- function(outlierFile, fileType=".png", sortKey="ip", orientation="l
   # Set yRange
   yRange <- c(packetMin, packetMax)
   
-  plot.list <- foreach (i = 1:nrow(uniqueSources)) %dopar% {
+  plot.list <- foreach (i = 1:nrow(outliers)) %dopar% {
     tempName <- tempfile(pattern = "outlier", tmpdir = tempdir(), fileext = ".png") # generate a temporary filename
-    png(tempName, width = 800, height = 800)
+    png(tempName, width = 700, height = 700)
 
     # Gathering all rows from which data was transferred to or from the source IP, sorted by destination IP
-    connections <- df %>% filter(SIP == uniqueSources$SIP[i]) %>% arrange(DIP)
+    connections <- df %>% filter(SIP == outliers$SIP[i]) %>% arrange(DIP)
     connectionMapping <- connections %>% distinct(DIP)  %>% mutate(sector = row_number()+1) # row_number+1 = section in circle plot
     destinationCount <- (connections %>% distinct(DIP) %>% tally())$n[1]
     taskCount <- (connections %>% tally())$n[1]
-    source <- as.character(uniqueSources$SIP[i]) # Grabbing the source IP
-    show(paste("Tasks for IP", source, ":",taskCount))
+    source <- as.character(outliers$SIP[i]) # Grabbing the source IP
+    #print(paste("Tasks for IP", source, ":",taskCount))
     numSectors <- as.integer(destinationCount + 1)
     
     # Tried using data.table instead of data.frame to check for speed
@@ -244,12 +270,12 @@ MakeCircs <- function(outlierFile, fileType=".png", sortKey="ip", orientation="l
         circos.updatePlotRegion(sector.index = 1, track.index = 1, bg.col = "#ffff66", bg.border = "#BDBDBD")
       }
       
-      if (numSectors <= 25 && taskCount < 700) { # Draw normally
+      if (numSectors <= 50 && taskCount < 700) { # Draw normally
         for (j in 1:nrow(connections)) {
           currentFactor <- (connectionMapping %>% filter(DIP==connections$DIP[j]))$sector[1]
-          circos.points(x = connections$TEND[j], y = connections$PacketCount[j], sector.index=1, col="#7B3294", pch=20)
+          circos.points(x = connections$TEND[j], y = connections$PacketCount[j], sector.index=1, col="#7B3294", pch=19)
           if (connections$RPacketCount[j] != 0) {
-            circos.points(x = connections$TEND[j], y = connections$RPacketCount[j], sector.index=currentFactor, col="#7B3294", pch=20)
+            circos.points(x = connections$TEND[j], y = connections$RPacketCount[j], sector.index=currentFactor, col="#7B3294", pch=19)
             circos.link(currentFactor, connections$TEND[j], 1, connections$TEND[j], col="#5AB4AC")
           } else {
             circos.link(currentFactor, connections$TEND[j], 1, connections$TEND[j], col="#D8B365")
@@ -258,7 +284,7 @@ MakeCircs <- function(outlierFile, fileType=".png", sortKey="ip", orientation="l
       } else if (numSectors <= 250) { # Draw chords for each sector
         groupedConnections <- connections %>% group_by(DIP) %>% 
           summarize(meanRPacketCount=mean(RPacketCount), meanPacketCount=mean(PacketCount))
-        # Want chord to not take up the full xRange, but, 90%
+        # Want chord to not take up the full xRange, but, 90%, looks less cluttered
         chordMax <- xRange[2]*0.95
         chordMin <- xRange[1] + xRange[2]*0.05
         chordRange <- c(chordMin, chordMax)
@@ -267,7 +293,7 @@ MakeCircs <- function(outlierFile, fileType=".png", sortKey="ip", orientation="l
           if (groupedConnections$meanRPacketCount[j] > 0) {
             circos.link(currentSector, chordRange, 1, chordRange, col="#5AB4AC")
             meanPackets <- groupedConnections$meanRPacketCount[j]
-            circos.lines(x=xRange, y=c(meanPackets,meanPackets), sector.index=currentSector, col="#7B3294", lwd=1.5)
+            circos.lines(x=xRange, y=c(meanPackets,meanPackets), sector.index=currentSector, col="#7B3294", lwd=2)
           } else {
             circos.link(currentSector, chordRange, 1, chordRange, col="#D8B365")
           }
@@ -311,159 +337,7 @@ MakeCircs <- function(outlierFile, fileType=".png", sortKey="ip", orientation="l
           }
         }
       }
-    #   print(numSectors)
-    #   tic()
-    #   # Only draw points if they are visible on plot, if there are 200 or more sections, don't
-    #   if (numSectors <= 250) {
-    #     # This is the fast version. If we have more than 600 tasks, it will take around 5 seconds for a single plot. Let's use
-    #     # that as a starting point.
-    #     if (taskCount > 600) {
-    #       groupingFactor <- ceiling(taskCount/600)
-    #       print(paste("Grouping Factor:",groupingFactor))
-    #       groupingWindow <- 0
-    #       beginTime <- connections$TEND[1]
-    #       endTime <- beginTime
-    #       beginDIP <- connections$DIP[1]
-    #       sector <- (connectionMapping %>% filter(DIP==beginDIP))$sector[1]
-    #       #circos.points(x=beginTime, y=connections$PacketCount[1], sector.index=1, col = "#7B3294", pch = 20)
-    #       rpc <- connections$RPacketCount[1]
-    #       if (rpc != 0) {
-    #         seenTeal <- TRUE
-    #         #circos.points(x=beginTime, y=rpc, sector.index=sector, col = "#7B3294", pch = 20)
-    #       } else {
-    #         seenTeal <- FALSE
-    #       }
-    #       groupingWindow <- groupingWindow+1
-    #       for (j in 2:nrow(connections)) {
-    #         currentDIP <- connections$DIP[j]
-    #         if (groupingWindow == groupingFactor || currentDIP != beginDIP || j == nrow(connections)) {
-    #           timeSpan <- c(beginTime, endTime)
-    #           if (seenTeal) {
-    #             circos.link(sector, timeSpan, 1, timeSpan, col = "#5AB4AC")
-    #             circos.points(x=endTime, y=connections$RPacketCount[j], sector.index=sector, col = "#7B3294", pch = 20)
-    #             circos.points(x=endTime, y=connections$PacketCount[j], sector.index=1, col = "#7B3294", pch = 20)
-    #           } else {
-    #             circos.link(sector, timeSpan, 1, timeSpan, col = "#D8B365")
-    #             circos.points(x=endTime, y=rpc <- connections$PacketCount[j], sector.index=1, col = "#7B3294", pch = 20)
-    #           }
-    #           beginTime <- connections$TEND[j]
-    #           endTime <- beginTime
-    #           sector <- (connectionMapping %>% filter(DIP==currentDIP))$sector[1]
-    #           #circos.points(x=beginTime, y=connections$PacketCount[j], sector.index=1, col = "#7B3294", pch = 20)
-    #           rpc <- connections$RPacketCount[j]
-    #           if (rpc != 0) {
-    #             seenTeal <- TRUE
-    #             #circos.points(x=beginTime, y=rpc, sector.index=sector, col = "#7B3294", pch = 20)
-    #           } else {
-    #             seenTeal <- FALSE
-    #           }
-    #           groupingWindow <- 1
-    #         } else {
-    #           endTime <- connections$TEND[j]
-    #           #circos.points(x=endTime, y=connections$PacketCount[j], sector.index=1, col = "#7B3294", pch = 20)
-    #           rpc <- connections$RPacketCount[j]
-    #           if (rpc != 0) {
-    #             seenTeal <- TRUE
-    #             #circos.points(x=endTime, y=rpc, sector.index=sector, col = "#7B3294", pch = 20)
-    #           } else {
-    #             seenTeal <- FALSE
-    #           }
-    #         }
-    #       }
-    #     } else {
-    #       for (j in 1:nrow(connections)) {
-    #         #currentFactor <- dataTableMapping[.(connections$DIP[j]), nomatch = 0L]$sector[1]
-    #         currentFactor <- (connectionMapping %>% filter(DIP==connections$DIP[j]))$sector[1]
-    #         circos.points(x = connections$TEND[j], y = connections$PacketCount[j], sector.index = 1, col = "#7B3294", pch = 20)
-    #         if (connections$RPacketCount[j] != 0) {
-    #           circos.points(x = connections$TEND[j], y = connections$RPacketCount[j], sector.index = currentFactor, col = "#7B3294", pch = 20)
-    #           circos.link(currentFactor, connections$TEND[j], 1, connections$TEND[j], col = "#5AB4AC")
-    #         } else {
-    #           circos.link(currentFactor, connections$TEND[j], 1, connections$TEND[j], col = "#D8B365")
-    #         }
-    #       }
-    #     }
-    #   } else {
-    #     connectionsRows <- nrow(connections)
-    #     lastColor <- FALSE
-    #     beginningSector <- (connectionMapping %>% filter(DIP==connections$DIP[1]))$sector[1]-1
-    #     lastSector <- beginningSector
-    #     tempSector <- -1
-    #     j <- 1
-    #     firstIteration <- TRUE
-    #     while (j <= connectionsRows) {
-    #       seenTeal <- FALSE
-    #       for (k in j:connectionsRows) {
-    #         #tic()
-    #         #tempSector <- dataTableMapping[dip]$sector[1]-1
-    #         tempSector <- (connectionMapping %>% filter(DIP==connections$DIP[k]))$sector[1]-1
-    #         #tempSector <- dataTableMapping[.(connections$DIP[k]), nomatch = 0L]$sector[1]-1
-    #         #tempSector <- dataTableMapping[.(dataTableConnections$DIP[k]), nomatch = 0L]$sector[1]-1
-    #         #tempSector <- dataTableMapping[.(dataTableConnections[k,DIP]), nomatch = 0L]$sector[1]-1
-    #         #toc()
-    #         if (tempSector == lastSector) {
-    #           if (connections$RPacketCount[k] != 0) {
-    #             seenTeal <- TRUE
-    #           }
-    #         } else {
-    #           j <- k
-    #           break
-    #         }
-    #         if (k == connectionsRows) {
-    #           j <- connectionsRows
-    #         }
-    #       }
-    #       
-    #       if (firstIteration) {
-    #         lastColor <- seenTeal
-    #         firstIteration <- FALSE
-    #       }
-    #       
-    #       if (j != connectionsRows) {
-    #         if (lastColor == seenTeal) {
-    #           lastSector <- tempSector
-    #           next
-    #         } else {
-    #           if (lastColor) {
-    #             #show("drawing teal")
-    #             circos.link(2, c(beginningSector, lastSector), 1, 0, col = "#5AB4AC")
-    #             #show(c(beginningSector, lastSector))
-    #             beginningSector <- tempSector
-    #             lastSector <- tempSector
-    #             lastColor <- seenTeal
-    #           } else {
-    #             #show("drawing amber")
-    #             circos.link(2, c(beginningSector, lastSector), 1, 0, col = "#D8B365")
-    #             #show(c(beginningSector, lastSector))
-    #             beginningSector <- tempSector
-    #             lastSector <- tempSector
-    #             lastColor <- seenTeal
-    #           }
-    #         }
-    #       } else { # we are at the end of the dataframe
-    #         if (lastColor == seenTeal) {
-    #           if (lastColor) {
-    #             circos.link(2, c(beginningSector, tempSector), 1, 0, col = "#5AB4AC")
-    #           } else {
-    #             circos.link(2, c(beginningSector, tempSector), 1, 0, col = "#D8B365")
-    #           }
-    #         } else {
-    #           if (lastColor) {
-    #             circos.link(2, c(beginningSector, lastSector), 1, 0, col = "#5AB4AC")
-    #           } else {
-    #             circos.link(2, c(beginningSector, lastSector), 1, 0, col = "#D8B365")
-    #           }
-    #           if (seenTeal) {
-    #             circos.link(2, c(lastSector, tempSector), 1, 0, col = "#5AB4AC")
-    #           } else {
-    #             circos.link(2, c(lastSector, tempSector), 1, 0, col = "#D8B365")
-    #           }
-    #         }
-    #         break
-    #       }
-    #     }
-    #   }
-    } else { # Draw everything normall, without speedup
+    } else { # Draw everything normally, without speedup
       factors <- c(1:numSectors)
       circos.initialize(factors = factors, xlim = xRange)
       circos.trackPlotRegion(ylim = yRange, force.ylim = TRUE, bg.border = "#BDBDBD")
@@ -475,13 +349,26 @@ MakeCircs <- function(outlierFile, fileType=".png", sortKey="ip", orientation="l
         dipConnections <- connections %>% filter(DIP==connectionMapping$DIP[j])
         connections <- connections %>% filter(DIP != connectionMapping$DIP[j])
         for (k in 1:nrow(dipConnections)) {
-          circos.points(x = dipConnections$TEND[k], y = dipConnections$PacketCount[k], sector.index = 1, col = "#7B3294", pch = 20)
+          circos.points(x = dipConnections$TEND[k], y = dipConnections$PacketCount[k], sector.index = 1, col = "#7B3294", pch=19)
           if (dipConnections$RPacketCount[k] != 0) {
-            circos.points(x = dipConnections$TEND[k], y = dipConnections$RPacketCount[k], sector.index = currentSector, col = "#7B3294", pch = 20)
+            circos.points(x = dipConnections$TEND[k], y = dipConnections$RPacketCount[k], sector.index = currentSector, col = "#7B3294", pch=19)
             circos.link(currentSector, dipConnections$TEND[k], 1, dipConnections$TEND[k], col = "#5AB4AC")
           } else {
             circos.link(currentSector, dipConnections$TEND[k], 1, dipConnections$TEND[k], col = "#D8B365")
           }
+        }
+      }
+    }
+    
+    # Label sectors based on their destination IP's 
+    if (labels) {
+      # Found that adding labels to destination sectors when there are any more than 10 results in overlapping text
+      if (destinationCount <= 10) {
+        for (j in 1:nrow(connectionMapping)) {
+          # Suppressing b/c we want the text of the destination IP to be printed outside of the plotting region
+          suppressMessages(
+          circos.text(x=((xRange[2]-xRange[1])/2)+xRange[1], y=packetMax+ uy(5, "mm"), sector.index=connectionMapping$sector[j], 
+                      labels=maskIP(connectionMapping$DIP[j],mask), cex=1.75, niceFacing=TRUE, facing="bending"))
         }
       }
     }
@@ -497,43 +384,27 @@ MakeCircs <- function(outlierFile, fileType=".png", sortKey="ip", orientation="l
       y_mid <- par("mai")[3] / 2
       height <- 0.8
       conv <- diff(grconvertY(y = 0:1, from = "inches", to = "user"))
-      rect(xleft = coord[1] + 0.3,
-           xright = coord[2] - 0.3,
-           ybottom = coord[4] - 0.01 + (y_mid * (1 - height) * conv) - 0.04,
-           ytop = coord[4] + (y_mid * (1 + height) * conv),
+      rect(xleft = coord[1] + 0.6,
+           xright = coord[2] - 0.6,
+           ybottom = coord[4] - 0.01 + (y_mid * (1 - height) * conv) - 0.01,
+           ytop = coord[4] + (y_mid * (1 + height) * conv) + 0.002,
            xpd = TRUE)
     }
     
-    # Masking the titles
-    if (mask == "/0") {
-      source <- "X.X.X.X"
-    } else if (mask == "/8") {
-      splitIP <- str_split(source, "\\.")
-      source <- paste0(splitIP[[1]][1],".X.X.X")
-    } else if (mask == "/16") {
-      splitIP <- str_split(source, "\\.")
-      source <- paste0(splitIP[[1]][1],".",splitIP[[1]][2],".X.X")
-    } else if (mask == "/24") {
-      splitIP <- str_split(source, "\\.")
-      source <- paste0(splitIP[[1]][1],".",splitIP[[1]][2],".",splitIP[[1]][3],".X")
-    } else if (mask == "/32"){
-      # Do nothing, show source fully
-    } else {
-      print("Mask doesn't match '/0', '/8', '/16', or '/24', masking all ('/0') by default.")
-      source <- "X.X.X.X"
-    }
-    
-    # Setting the titles
+    # Masking the title of the plot
+    source <- maskIP(source,mask)
+
+    # Setting the title for each individual plot
     if (sortKey == "cluster") {
-      cluster <- uniqueSources$clusterCenter[i]
-      modTitle <- paste0(source, "--", cluster)
-      title(main=modTitle, line=-0.7)
+      cluster <- outliers$clusterCenter[i]
+      modTitle <- paste0(source, " -- ", cluster)
+      title(main=modTitle, line=-0.3)
     } else if (sortKey == "threat") {
-      threat <- uniqueSources$threatLevel[i]
-      modTitle <- paste0(source, "--", signif(threat, digits = 2))
-      title(main=modTitle, line=-0.7)
+      threat <- outliers$threatLevel[i]
+      modTitle <- paste0(source, " -- ", signif(threat, digits = 2))
+      title(main=modTitle, line=-0.3)
     } else {
-      title(main=source, line=-0.7)
+      title(main=source, line=-0.3)
     }
     
     dev.off() # finalize and save the plot to a file
@@ -541,18 +412,37 @@ MakeCircs <- function(outlierFile, fileType=".png", sortKey="ip", orientation="l
     plot <- rasterGrob(img, interpolate = TRUE) # this will be what is combined in plot.list
   }
   
+  arrangedGrob <- arrangeGrob(grobs=plot.list, nrow=rows, ncol=cols, top=textGrob(as.character(plotsTitle), gp=gpar(fontsize=8)))
+  #gtable_show_layout(arrangedGrob)
+  
+  # Drawing vertical lines between plots to demarcate clusters
+  if (sortKey == "cluster") { # We want to draw boxes around the groupings of clusters in plot grid
+    clusters <- outliers %>% group_by(clusterCenter) %>% tally() %>% arrange(desc(clusterCenter))
+    iterations <- nrow(clusters)-1 # Only need to draw n-1 separators
+    if (iterations > 0) {
+      position <- 0
+      for (i in 1:iterations) {
+        position <- position + clusters$n[i]
+        row <- as.integer(position/cols) + 2
+        column <- position - ((row-2)*cols) + 1
+        #print(paste("Row:",row,"Column:",column))
+        arrangedGrob <- gtable_add_grob(arrangedGrob, 
+                                        grobs=segmentsGrob(x0 = 0, y0 = 0, x1 = 0, y1 = 1, gp=gpar(lwd=3)), 
+                                        t = row, l = column, b = row, r = column, name=paste0("sep",i))
+      }
+    }
+  }
+  
   # Use ggsave to save all png's to single file, called fileCombined (specified on line 108)
   if (orientation == "l") {
-    ggsave(fileCombined, width=11, height=8.5,
-           arrangeGrob(grobs=plot.list, nrow=rows, ncol=cols, top=textGrob(as.character(plotsTitle), gp=gpar(fontsize=8))))
-  } else {
-    ggsave(fileCombined, width=8.5, height=11,
-           arrangeGrob(grobs=plot.list, nrow=rows, ncol=cols, top=textGrob(as.character(plotsTitle), gp=gpar(fontsize=8))))
+    ggsave(fileCombined, width=11, height=8.5, arrangedGrob)
+  } else { # Drawing in portrait mode
+    ggsave(fileCombined, width=8.5, height=11, arrangedGrob)
   }
 }
 
 # Calling the MakeCircs function
 # For time-keeping purposes
-MakeCircs(outlierFile, fileType, sortType, fast=FALSE, mask="/16")
-#MakeCircs("/data/circlePlots/old/26453522_outliers.tsv", ".png", "cluster")
+MakeCircs(outlierFile, fileType=fileType, sortKey=sortType, fast=TRUE, mask="/32", labels=TRUE)
+#MakeCircs("~/networkCirclePlots/test_data/25_1_outliers.tsv", ".png", "cluster")
 toc()

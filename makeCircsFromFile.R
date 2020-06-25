@@ -10,7 +10,7 @@ dests <- NULL
 orientation <- NULL
 banner <- NULL
 subnet <- NULL
-coreCount <- NULL
+ncpCoreCount <- NULL
 
 source(paste0(currentPath,"cmdArgs.R"))
 source(paste0(currentPath,"networkCirclePlots.R"))

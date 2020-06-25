@@ -1,12 +1,36 @@
 # Check whether user has provided core count or not
-if (exists("coreCount")) {
-  if (!is.null(coreCount)) {
-    registerDoParallel(cores=coreCount)
+if (exists("ncpCoreCount")) {
+  if (!is.null(ncpCoreCount)) {
+    registerDoParallel(cores=ncpCoreCount)
   } else {
     registerDoParallel(cores=detectCores()-2)
   }
 } else {
   registerDoParallel(cores=detectCores()-2)
+}
+
+changeCoreCount <- function(newCoreCount) {
+  if (!is.numeric(newCoreCount)) {
+    print("Error: must provide an integer value for the new core count. Nothing has changed.")
+    return()
+  } else {
+    if (newCoreCount%%1 != 0) {
+      print("Error: new core count must be an integer value.")
+      return()
+    }
+    if (newCoreCount > detectCores()) {
+      print("Requested core count is greater than the number of cores the machine has. Set to max.")
+      stopImplicitCluster()
+      registerDoParallel(cores=detectCores())
+    } else if (newCoreCount < 1) {
+      print("Requested core count is less than 1. Set to min.")
+      stopImplicitCluster()
+      registerDoParallel(cores=1)
+    } else {
+      stopImplicitCluster()
+      registerDoParallel(cores=newCoreCount)
+    }
+  }
 }
 
 maskIP <- function(ip, mask) {
@@ -86,7 +110,7 @@ makeCircsFromFile <- function(outlierFile, name=NULL, fileType="png", sortType="
     )
   }
   
-  # Check for subnet in outlier file name
+  # Check for subnet in outlier filename
   if (is.null(subnet)) {
     subnet <- tryCatch(
       {
@@ -186,7 +210,13 @@ makeCircs <- function(outliers, links, name, fileType="png", sortType="ip", orie
   # Set yRange
   yRange <- c(packetMin, packetMax)
   
-  plot.list <- foreach (i = 1:nrow(outliers)) %dopar% {
+  tic()
+  # If fast plotting is enabled, there is a ceiling on how long the plot will take to draw, so pre-allocating
+  # plots to cores will improve performance. If fast plotting is disabled, pre-allocating may assign one core
+  # an unfair number of complex plots. This will slow the plotting process.
+  if (fast) {mcoptions <- list(preschedule=TRUE)}
+  else {mcoptions <- list(preschedule=FALSE)}
+  plot.list <- foreach (i = 1:nrow(outliers), .options.multicore=mcoptions) %dopar% {
     tempName <- tempfile(pattern = "outlier", tmpdir = tempdir(), fileext = ".png") # generate a temporary filename
     png(tempName, width = 700, height = 700)
 
@@ -346,7 +376,9 @@ makeCircs <- function(outliers, links, name, fileType="png", sortType="ip", orie
           subIP <- paste0(subIP, ".", splitIP[j])
         }
       }
-      # Could be a security risk, if the entire IP is masked but a box is still drawn around the IP
+      
+      # Compare the source's IP with the subnet provided or found, draw rectangle around source
+      # if it resides within the subnet
       if (strcmpi(subIP,subnet)) {
         # Taken from stack overflow, but modified to fit IP title width and height
         coord <- par("usr")
@@ -381,6 +413,7 @@ makeCircs <- function(outliers, links, name, fileType="png", sortType="ip", orie
     img <- readPNG(tempName) # read back finalized plot
     plot <- rasterGrob(img, interpolate = TRUE) # this will be what is combined in plot.list
   }
+  toc()
   
   arrangedGrob <- arrangeGrob(grobs=plot.list, nrow=rows, ncol=cols, top=textGrob(as.character(banner), gp=gpar(fontsize=8)))
   #gtable_show_layout(arrangedGrob)

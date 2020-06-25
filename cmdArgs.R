@@ -96,14 +96,14 @@ if (opt$dests) {
 }
 
 if (is.null(opt$cores)) {
-  coreCount <<- detectCores()-2
+  ncpCoreCount <<- detectCores()-2
 } else if (is.integer(opt$cores)){
   if (opt$cores > detectCores()) {
-    coreCount <<- detectCores()
+    ncpCoreCount <<- detectCores()
   } else if (opt$cores < 1){
-    coreCount <<- 1
+    ncpCoreCount <<- 1
   } else {
-    coreCount <<- opt$cores
+    ncpCoreCount <<- opt$cores
   }
 } else {
   stop("The number of cores must be an integer.")

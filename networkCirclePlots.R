@@ -1,3 +1,7 @@
+# Importing libraries
+currentPath <- paste0(getwd(),"/")
+source(paste0(currentPath,"includes/libs.R"))
+
 # Check whether user has provided core count or not
 if (exists("ncpCoreCount")) {
   if (!is.null(ncpCoreCount)) {
@@ -87,7 +91,7 @@ linksFileToDataFrame <- function(file) {
   return(links)
 }
 
-makeCircsFromFile <- function(outlierFile, name=NULL, fileType="png", sortType="ip", orientation="l", fast=TRUE, mask="/0", dests=FALSE, banner=NULL, subnet=NULL) {
+makeCirclesFromFile <- function(outlierFile, name=NULL, fileType="png", sortType="ip", orientation="l", fast=TRUE, mask="/0", dests=FALSE, banner=NULL, subnet=NULL) {
 
   outliers <- outlierFileToDataFrame(outlierFile)
   linksFile <- gsub("outliers", "links", outlierFile)
@@ -124,10 +128,10 @@ makeCircsFromFile <- function(outlierFile, name=NULL, fileType="png", sortType="
   }
   
   # Call the main function with the provided parameters
-  makeCircs(outliers, links, name, banner=banner, fileType=fileType, sortType=sortType, orientation=orientation, fast=fast, mask=mask, dests=dests, subnet=subnet)
+  makeCircles(outliers, links, name, banner=banner, fileType=fileType, sortType=sortType, orientation=orientation, fast=fast, mask=mask, dests=dests, subnet=subnet)
 }
 
-makeCircs <- function(outliers, links, name, fileType="png", sortType="ip", orientation="l", fast=TRUE, mask="/0", dests=FALSE, banner=NULL, subnet=NULL) {
+makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", orientation="l", fast=TRUE, mask="/0", dests=FALSE, banner=NULL, subnet=NULL) {
   
   # If sorting on threat, that is the only column we can sort on
   if (sortType == "threat") {

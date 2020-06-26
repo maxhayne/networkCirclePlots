@@ -1,5 +1,5 @@
 currentPath <- paste0(getwd(),"/")
-source(paste0(currentPath,"libs.R"))
+source(paste0(currentPath,"includes/libs.R"))
 
 outlierFile <- NULL
 fileType <- NULL
@@ -12,7 +12,7 @@ banner <- NULL
 subnet <- NULL
 ncpCoreCount <- NULL
 
-source(paste0(currentPath,"cmdArgs.R"))
+source(paste0(currentPath,"includes/cmdArgs.R"))
 source(paste0(currentPath,"networkCirclePlots.R"))
 
 # Calling circle plotting function

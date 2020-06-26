@@ -1,0 +1,33 @@
+# FINISHED -- Not Orthogonally, but bending with the edge of the circle. This prevents labels from intersecting with other plots
+# Add Destination IPs jutting out orthogonally from the perimeter of the circle's sectors
+
+# ATTEMPTED
+# Tried figuring this out with doMPI, was much slower than doParallel
+# Figure out how to feed iterations of the for-loop to available threads on the fly. If the loop iterations
+# are chunked, and each core is fed a chunk, the worst chunk could contain 4 plots that are very time consuming
+# to draw. Therefore, the speedup wouldn't be optimal.
+
+# UNEEDED
+# Add functionality for specifying which column will act as the X, which column will act as they Y, which column will
+# act as the Time. Default value for X will be TEND, default value for Y will Packets (or RPackets), default value 
+# for Time will be TEND.
+
+# FINISHED
+# Add functionality for specifying the type of formatting wanted for the circleplots -- Portrait, Landscape, Square, etc.
+
+# Add functionality for specifying the yRange -- only use min and max of PacketCount, only use min and max of RPacketCount,
+# or use the max and min between the two types of packet counts.
+
+# FINISHED
+# Add functionality for generating png, pdf, or jpg images from the plots generated, which have the same name as the
+# outlier file but with an extension that fits the image file type
+
+# FINISHED
+# Add functionality for taking an ouliers file (should be required), add an option for which column to sort the
+# the plots on. Could sort the plots on threatLevel, clusterCenter, or perhaps a more complex (not alphabetical) sorting of 
+# the source IP. If asked to sort on clusterCenter, do sort on clusterCenter, but second on threatLevel. If asked to sort
+# on threatLevel, just sort on threatLevel. If nothing is specified, the default will sort on IP.
+
+# FINISHED
+# Add functionality for choosing to skip plotting the points if the number of destination IP's for each source is too large.
+# Because, too many sections will obfuscate the positions of the points anyway.

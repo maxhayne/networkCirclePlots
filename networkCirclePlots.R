@@ -285,7 +285,7 @@ makeCircs <- function(outliers, links, name, fileType="png", sortType="ip", orie
           if (groupedConnections$meanRPacketCount[j] > 0) {
             circos.link(currentSector, chordRange, 1, chordRange, col="#5AB4AC")
             meanPackets <- groupedConnections$meanRPacketCount[j]
-            circos.lines(x=xRange, y=c(meanPackets,meanPackets), sector.index=currentSector, col="#7B3294", lwd=2)
+            circos.lines(x=xRange, y=c(meanPackets,meanPackets), sector.index=currentSector, col="#7B3294", lwd=4)
           } else {
             circos.link(currentSector, chordRange, 1, chordRange, col="#D8B365")
           }
@@ -298,7 +298,7 @@ makeCircs <- function(outliers, links, name, fileType="png", sortType="ip", orie
           arrange(meanRPacketCount)
         
         # Plotting increasing means in RPacketCount around the circle. Reducing the number of points to draw by four.
-        # For 2500 sectors, this process takes about 0.8 seconds, which I believe is worth it.
+        # For 2500 sectors, this process takes about 0.8 seconds.
         yPoints <- (groupedConnections %>% filter(meanRPacketCount != 0))[['meanRPacketCount']]
         xPoints <- c((1+(destSectors-length(yPoints))):destSectors)
         yPointsReduced <- vector(mode="numeric", length = as.integer(length(yPoints/4)))
@@ -307,7 +307,7 @@ makeCircs <- function(outliers, links, name, fileType="png", sortType="ip", orie
           yPointsReduced[j] <- yPoints[j*4]
           xPointsReduced[j] <- xPoints[j*4]
         }
-        circos.lines(x=xPointsReduced, y=yPointsReduced, sector.index=2, col="#7B3294", lwd=3)
+        circos.lines(x=xPointsReduced, y=yPointsReduced, sector.index=2, col="#7B3294", lwd=4)
         
         if (groupedConnections$meanRPacketCount[1] > 0) {
           chordColor <- TRUE

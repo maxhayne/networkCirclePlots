@@ -8,11 +8,18 @@ clusterCenter = "0"
 
 SIPS = []
 
-with open("25_outliers.tsv", "w+") as f:
+with open("25_1_outliers.tsv", "w+") as f:
 	f.write(top)
 	for i in range(25):
 		SIP = baseSIP + str(i)
 		threatLevel = str(24-i)
+		if i < 24:
+		  if i < 11:
+		    clusterCenter = str(3)
+		  else:
+		    clusterCenter = str(2)
+		else: 
+		  clusterCenter = str(1)
 		line = TEND + "\t" + PROTOCOL + "\t" + DPORT + "\t" + SIP + "\t" + PASS + "\t" + clusterCenter + "\t" + threatLevel + "\n"
 		f.write(line)
 
@@ -22,13 +29,13 @@ SIPS.reverse()
 
 top = "TEND\tSIP\tDIP\tFlowCount\tByteCount\tPacketCount\tRByteCount\tRPacketCount\n"
 TEND = "15"
-baseDIP = "10.0."
+baseDIP = "2000.2000."
 FlowCount = "0" # this isn't regarded
 ByteCount = "0"
 PacketCount = "1"
 RByteCount = "0"
 
-with open("25_InOut.tsv", "w+") as f:
+with open("25_1_links.tsv", "w+") as f:
 	f.write(top)
 	for i in range(len(SIPS)):
 		count = 99 + (100*i)

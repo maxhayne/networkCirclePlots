@@ -1,2 +1,2 @@
 TEND	PROTOCOL	DPORT	SIP	PASS	clusterCenter	threatLevel
-30	UDP	0	1.0.0.1	1	0	1
+30	UDP	0	20000.20000.0.1	1	0	1

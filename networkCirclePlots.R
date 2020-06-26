@@ -296,6 +296,19 @@ makeCircs <- function(outliers, links, name, fileType="png", sortType="ip", orie
         groupedConnections <- connections %>% group_by(DIP) %>% 
           summarize(meanRPacketCount=mean(RPacketCount), meanPacketCount=mean(PacketCount)) %>% 
           arrange(meanRPacketCount)
+        
+        # Plotting increasing means in RPacketCount around the circle. Reducing the number of points to draw by four.
+        # For 2500 sectors, this process takes about 0.8 seconds, which I believe is worth it.
+        yPoints <- (groupedConnections %>% filter(meanRPacketCount != 0))[['meanRPacketCount']]
+        xPoints <- c((1+(destSectors-length(yPoints))):destSectors)
+        yPointsReduced <- vector(mode="numeric", length = as.integer(length(yPoints/4)))
+        xPointsReduced <- vector(mode="numeric", length = as.integer(length(xPoints/4)))
+        for (j in 1:length(xPointsReduced)) {
+          yPointsReduced[j] <- yPoints[j*4]
+          xPointsReduced[j] <- xPoints[j*4]
+        }
+        circos.lines(x=xPointsReduced, y=yPointsReduced, sector.index=2, col="#7B3294", lwd=3)
+        
         if (groupedConnections$meanRPacketCount[1] > 0) {
           chordColor <- TRUE
         } else {

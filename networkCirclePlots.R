@@ -1,5 +1,6 @@
 # Importing libraries
-currentPath <- paste0(getwd(),"/")
+script.dir <- dirname(sys.frame(1)$ofile)
+currentPath <- paste0(script.dir,"/")
 source(paste0(currentPath,"includes/libs.R"))
 
 # Check whether user has provided core count or not
@@ -157,7 +158,7 @@ makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", or
   
   # Set the working directory to the path of the name provided by the user
   filePath <- dirname(name)
-  setwd(filePath)
+  #setwd(filePath)
   
   # If banner is provided, use the banner. If no banner is provided, try to extract information about the time
   # the data was taken from the name of the output file passed by the user. If the name of the file given by
@@ -456,8 +457,8 @@ makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", or
   }
   # Use ggsave to save all png's to single file, called fileCombined (specified on line 108)
   if (orientation == "l") {
-    ggsave(fileCombined, width=11, height=8.5, arrangedGrob)
+    ggsave(path=filePath,filename=fileCombined, width=11, height=8.5, arrangedGrob)
   } else { # Drawing in portrait mode
-    ggsave(fileCombined, width=8.5, height=11, arrangedGrob)
+    ggsave(path=filePath,filename=fileCombined, width=8.5, height=11, arrangedGrob)
   }
 }

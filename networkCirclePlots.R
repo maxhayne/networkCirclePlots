@@ -73,7 +73,7 @@ ip2long <- function(ip) {
 
 outlierFileToDataFrame <- function(file) {
   if (!file.exists(file)) {
-    throw(paste0("The file ", file, " does not exist."))
+    stop(paste0("The file ", file, " does not exist."))
   }
   outliers.columns.all <- c("TEND","PROTOCOL","DPORT","SIP","PASS","clusterCenter","threatLevel")
   outliers.columns.types <- cols(TEND = "i", PROTOCOL = "c", DPORT = "i", SIP = "c", PASS = "i", clusterCenter = "i", threatLevel = "n")
@@ -83,7 +83,7 @@ outlierFileToDataFrame <- function(file) {
 
 linksFileToDataFrame <- function(file) {
   if (!file.exists(file)) {
-    throw(paste0("The file ", file, " does not exist."))
+    stop(paste0("The file ", file, " does not exist."))
   }
   links.columns.all <- c("TEND","SIP","DIP","FlowCount","ByteCount","PacketCount","RByteCount","RPacketCount")
   links.columns.types <- cols(TEND = "i", SIP = "c", DIP = "c", FlowCount = "i", ByteCount = "i", PacketCount = "i", RByteCount = "i", RPacketCount = "i")
@@ -132,7 +132,7 @@ makeCirclesFromFile <- function(outlierFile, name=NULL, fileType="png", sortType
 }
 
 makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", orientation="l", fast=TRUE, mask="/0", dests=FALSE, banner=NULL, subnet=NULL) {
-  
+
   # If sorting on threat, that is the only column we can sort on
   if (sortType == "threat") {
     outliers <- outliers %>% arrange(desc(threatLevel))
@@ -214,7 +214,6 @@ makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", or
   # Set yRange
   yRange <- c(packetMin, packetMax)
   
-  tic()
   # If fast plotting is enabled, there is a ceiling on how long the plot will take to draw, so pre-allocating
   # plots to cores will improve performance. If fast plotting is disabled, pre-allocating may assign one core
   # an unfair number of complex plots. This will slow the plotting process.
@@ -226,7 +225,11 @@ makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", or
 
     # Gathering all rows from which data was transferred to or from the source IP, sorted by destination IP
     connections <- links %>% filter(SIP == outliers$SIP[i]) %>% arrange(DIP)
-    connectionMapping <- connections %>% distinct(DIP)  %>% mutate(sector = row_number()+1) # row_number+1 = section in circle plot
+    connectionMapping <- connections %>% group_by(DIP) %>% 
+      summarize(meanRPacketCount=mean(RPacketCount), meanPacketCount=mean(PacketCount), .groups="keep") %>% 
+      arrange(meanRPacketCount) %>% 
+      mutate(sector = row_number()+1)
+    #connectionMapping <- connections %>% distinct(DIP)  %>% mutate(sector = row_number()+1) # row_number+1 = section in circle plot
     destinationCount <- (connections %>% distinct(DIP) %>% tally())$n[1]
     taskCount <- (connections %>% tally())$n[1]
     source <- as.character(outliers$SIP[i]) # Grabbing the source IP
@@ -279,7 +282,7 @@ makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", or
         }
       } else if (numSectors <= 250) { # Draw chords for each sector
         groupedConnections <- connections %>% group_by(DIP) %>% 
-          summarize(meanRPacketCount=mean(RPacketCount), meanPacketCount=mean(PacketCount))
+          summarize(meanRPacketCount=mean(RPacketCount), meanPacketCount=mean(PacketCount), .groups="keep")
         # Want chord to not take up the full xRange, but, 90%, looks less cluttered
         chordMax <- xRange[2]*0.95
         chordMin <- xRange[1] + xRange[2]*0.05
@@ -289,7 +292,7 @@ makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", or
           if (groupedConnections$meanRPacketCount[j] > 0) {
             circos.link(currentSector, chordRange, 1, chordRange, col="#5AB4AC")
             meanPackets <- groupedConnections$meanRPacketCount[j]
-            circos.lines(x=xRange, y=c(meanPackets,meanPackets), sector.index=currentSector, col="#7B3294", lwd=4)
+            circos.lines(x=xRange, y=c(meanPackets,meanPackets), sector.index=currentSector, col="#7B3294", lwd=5)
           } else {
             circos.link(currentSector, chordRange, 1, chordRange, col="#D8B365")
           }
@@ -298,20 +301,20 @@ makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", or
         }
       } else { # Draw chords for consecutive and same-colored sectors
         groupedConnections <- connections %>% group_by(DIP) %>% 
-          summarize(meanRPacketCount=mean(RPacketCount), meanPacketCount=mean(PacketCount)) %>% 
+          summarize(meanRPacketCount=mean(RPacketCount), meanPacketCount=mean(PacketCount), .groups="keep") %>% 
           arrange(meanRPacketCount)
         
         # Plotting increasing means in RPacketCount around the circle. Reducing the number of points to draw by four.
         # For 2500 sectors, this process takes about 0.8 seconds.
         yPoints <- (groupedConnections %>% filter(meanRPacketCount != 0))[['meanRPacketCount']]
         xPoints <- c((1+(destSectors-length(yPoints))):destSectors)
-        yPointsReduced <- vector(mode="numeric", length = as.integer(length(yPoints/4)))
-        xPointsReduced <- vector(mode="numeric", length = as.integer(length(xPoints/4)))
+        yPointsReduced <- vector(mode="numeric", length = as.integer(length(yPoints)/4))
+        xPointsReduced <- vector(mode="numeric", length = as.integer(length(xPoints)/4))
         for (j in 1:length(xPointsReduced)) {
           yPointsReduced[j] <- yPoints[j*4]
           xPointsReduced[j] <- xPoints[j*4]
         }
-        circos.lines(x=xPointsReduced, y=yPointsReduced, sector.index=2, col="#7B3294", lwd=4)
+        circos.lines(x=xPointsReduced, y=yPointsReduced, sector.index=2, col="#7B3294", lwd=6)
         
         if (groupedConnections$meanRPacketCount[1] > 0) {
           chordColor <- TRUE
@@ -430,7 +433,6 @@ makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", or
     img <- readPNG(tempName) # read back finalized plot
     plot <- rasterGrob(img, interpolate = TRUE) # this will be what is combined in plot.list
   }
-  toc()
   
   arrangedGrob <- arrangeGrob(grobs=plot.list, nrow=rows, ncol=cols, top=textGrob(as.character(banner), gp=gpar(fontsize=8)))
   #gtable_show_layout(arrangedGrob)

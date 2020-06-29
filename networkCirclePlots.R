@@ -94,7 +94,7 @@ linksFileToDataFrame <- function(file) {
 makeCirclesFromFile <- function(outlierFile, name=NULL, fileType="png", sortType="ip", orientation="l", fast=TRUE, mask="/0", dests=FALSE, banner=NULL, subnet=NULL) {
 
   outliers <- outlierFileToDataFrame(outlierFile)
-  linksFile <- gsub("outliers", "links", outlierFile)
+  linksFile <- gsub("outliers.tsv", "links.tsv", outlierFile)
   links <- linksFileToDataFrame(linksFile)
   
   file <- file_path_sans_ext(basename(outlierFile)) # grabbing outliers file name

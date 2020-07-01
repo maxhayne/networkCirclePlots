@@ -385,6 +385,7 @@ makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", or
         }
       }
     }
+    
     circos.clear()
     
     # Drawing boxes around the titles of the plots whose SIP's are from within the cluster's network
@@ -434,6 +435,8 @@ makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", or
     img <- readPNG(tempName) # read back finalized plot
     plot <- rasterGrob(img, interpolate = TRUE) # this will be what is combined in plot.list
   }
+  
+  circos.clear() # Clearing again, warnings are thrown occasionally 
   
   arrangedGrob <- arrangeGrob(grobs=plot.list, nrow=rows, ncol=cols, top=textGrob(as.character(banner), gp=gpar(fontsize=8)))
   #gtable_show_layout(arrangedGrob)

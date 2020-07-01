@@ -1,5 +1,6 @@
 # Importing libraries
-currentPath <- paste0(getwd(),"/")
+script.dir <- dirname(sys.frame(1)$ofile)
+currentPath <- paste0(script.dir,"/")
 source(paste0(currentPath,"includes/libs.R"))
 
 outlierFile <- NULL

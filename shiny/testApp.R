@@ -35,6 +35,10 @@ server <- function(input, output) {
         if (!(sub %in% sublist)) {
           sublist <- c(sublist,sub)
         }
+      } else {
+        if (!("None" %in% sublist)) {
+          sublist <- c("None", sublist)
+        }
       }
     }
     selectInput(inputId = "subnet", label = "SubNet:", choices = sublist)
@@ -44,30 +48,48 @@ server <- function(input, output) {
     currentSubNet <- input$subnet
     counter <- 0
     imgs <- list.files(path=paste0("www/",input$date,"/plots"), pattern=".png", full.names=TRUE)
-    for (i in 1:length(imgs)) {
-      if (strcmpi(strsplit(imgs[i],"_")[[1]][2],currentSubNet)) {
-        counter <- counter+1
+    if (strcmp("None",currentSubNet)) {
+      for (i in 1:length(imgs)) {
+        if (str_count(imgs[i], "_") == 1) {
+          counter <- counter+1
+        }
       }
-    }
-    selected_imgs <- vector(mode="character",length=counter)
-    index <- 1
-    for (i in 1:length(imgs)) {
-      tmpSubNet <- strsplit(imgs[i],"_")[[1]][2]
-      if (strcmpi(tmpSubNet,currentSubNet)) {
-        selected_imgs[index] <- imgs[i]
-        index <- index+1
+    } else {
+      for (i in 1:length(imgs)) {
+        if (strcmpi(strsplit(imgs[i],"_")[[1]][2],currentSubNet)) {
+          counter <- counter+1
+        }
       }
     }
     slider_choices <- vector(mode="character",length=counter)
-    for (i in 1:length(selected_imgs)) {
-      slider_choices[i] <- strsplit(basename(selected_imgs[i]),"_")[[1]][1]
+    index <- 1
+    if (strcmp("None",currentSubNet)) {
+      for (i in 1:length(imgs)) {
+        if (str_count(imgs[i], "_") == 1) {
+          slider_choices[index] <- strsplit(basename(imgs[i]),"_")[[1]][1]
+          index <- index+1
+        }
+      }
+    }
+    else {
+      for (i in 1:length(imgs)) {
+        tmpSubNet <- strsplit(imgs[i],"_")[[1]][2]
+        if (strcmpi(tmpSubNet,currentSubNet)) {
+          slider_choices[index] <- strsplit(basename(imgs[i]),"_")[[1]][1]
+          index <- index+1
+        }
+      }
     }
     shinyWidgets::sliderTextInput(inputId = "minute", label = "Epoch Minute:", choices=slider_choices,
                                   animate = animationOptions(interval = 600, loop = TRUE))
   })
   
   output$image <- renderUI({
-    img(src=paste0(input$date,"/plots/", input$minute, "_", input$subnet, "_outliers.png"), height="68%", width="68%")
+    if (strcmp(input$subnet,"None")) {
+      img(src=paste0(input$date,"/plots/", input$minute, "_outliers.png"), height="68%", width="68%")
+    } else {
+      img(src=paste0(input$date,"/plots/", input$minute, "_", input$subnet, "_outliers.png"), height="68%", width="68%")
+    }
   })
 }
 

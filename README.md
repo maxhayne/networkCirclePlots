@@ -14,7 +14,7 @@ Ribbons are drawn in the interior of the circle (an example shown on the right i
 
 A circle plot allows for visualization of a SIP's activity in a window of time, specifically the frequency and severity of contacts made.  Many segments in the outer track indicates a large number of DIPs contacted.  The points within segments visualize the relative volume of packets sent and received by the SIP.  The location and amount of ribbons show when and how often these contacts were made.  The color of the ribbons gives an immediate notion of the proportion of successful contacts.  To illustrate these benefits, consider the circle plot on the right side of Figure 1, where SIP X.X.X.X contacted 11 unique DIPs (11 non-highlighted segments around the circle), sporadically (some gaps between points in the yellow SIP segment) and with intermittent success (both teal and amber ribbons).  The SIP sent relatively more packets in the beginning of the period than the end, as points in the SIP segment closer to the vertical radial are closer to the outer edge than those at the other end of the SIP segment.  When the DIPs replied (teal), they sent an “average” amount of packets back.
 
-<p align="center">
+<p align="middle">
   <img src="/images/CirclePlot_Grid1.png" width="300" />
   <img src="/images/CirclePlot_Grid2.png" width="300" /> 
 </p>

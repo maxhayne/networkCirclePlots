@@ -12,13 +12,15 @@ with open("4_1_outliers.tsv", "w+") as f:
   f.write(top)
 for i in range(4):
   SIP = baseSIP + str(i)
-threatLevel = str(4-i)
-if i < 2:
-  clusterCenter = str(2)
-else: 
-  clusterCenter = str(1)
-line = TEND + "\t" + PROTOCOL + "\t" + DPORT + "\t" + SIP + "\t" + PASS + "\t" + clusterCenter + "\t" + threatLevel + "\n"
-f.write(line)
+  threatLevel = str(4-i)
+  if i < 1:
+    clusterCenter = str(3)
+  elif i < 2: 
+    clusterCenter = str(2)
+  elif i < 3:
+    clusterCenter = str(1)
+  line = TEND + "\t" + PROTOCOL + "\t" + DPORT + "\t" + SIP + "\t" + PASS + "\t" + clusterCenter + "\t" + threatLevel + "\n"
+  f.write(line)
 
 SIPS.append(SIP)
 
@@ -26,7 +28,7 @@ SIPS.reverse()
 
 top = "TEND\tSIP\tDIP\tFlowCount\tByteCount\tPacketCount\tRByteCount\tRPacketCount\n"
 TEND = "15"
-baseDIP = "2000.2000."
+baseDIP = "200.100."
 FlowCount = "0" # this isn't regarded
 ByteCount = "0"
 PacketCount = "1"

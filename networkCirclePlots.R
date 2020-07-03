@@ -298,7 +298,7 @@ makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", or
             circos.link(currentSector, chordRange, 1, chordRange, col="#D8B365")
           }
           meanPackets <- groupedConnections$meanPacketCount[j]
-          circos.lines(x=xRange, y=c(meanPackets,meanPackets), sector.index=1, col="#7B3294")
+          circos.lines(x=xRange, y=c(meanPackets,meanPackets), sector.index=1, col="#7B3294", lwd = 2)
         }
       } else { # Draw chords for consecutive and same-colored sectors
         groupedConnections <- connections %>% group_by(DIP) %>% 
@@ -465,3 +465,4 @@ makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", or
     ggsave(path=filePath,filename=fileCombined, width=8.5, height=11, arrangedGrob)
   }
 }
+

@@ -30,4 +30,13 @@ A circle plot allows for visualization of a SIP's activity in a window of time, 
 
 Comparing behaviors between SIPs can be done by organizing circle plots in a grid of small multiples (Tufte et al., 1990). As shown in Figure 2, we propose it is easy to get a gestalt of the types of outliers, which can give insight and build confidence in any subsequent clustering that might be performed. The grids in Figure 2 are sorted by the number of DIP segments, but other sorting mechanisms can be used.
 
-Single and Multi-Core executions performed on Intel(R) Xeon(R) CPU E5-2640 v4 @ 2.40GHz processors in a Dell PowerEdge R430 (40 cores, 256GB RAM). 
+Visualization of network data with circle plots can be particularily useful when analyzing DDos attacks post-hoc, under the assumption that the nodes which orchestrated the attack have been partially identified and tracked throughout the event. An analyst combing the raw data without the aid of visualization may be hard-pressed to find patterns or anomalous behavior in the time frame leading up to or during the event, while an analyst equipped with visual tools may not. However, visualization takes time, and as the number of points and links and sectors in a circle plot increase, so does its draw time. As an example, an outlier node (SIP) might be identified which has made contact with 3000 DIPs, and has exchanged an average of 100 packets with each. The information about these 100 packets may be encapsulated in 15-30 data rows, each of which correspond to a point-link pair. Barring optimizations, a plot this complex requires a minimum of 138,000 calls to a generalized <i>draw</i> function (3000 sectors, <img src="https://render.githubusercontent.com/render/math?math=15 * 2 * 3000=90000"> points, and <img src="https://render.githubusercontent.com/render/math?math=15 * 3000=45000"> links). On a Dell PowerEdge R430 (Intel(R) Xeon(R) CPU E5-2640 v4 @ 2.40GHz w/ 40 cores, 256GB RAM), which is the machine this code was developed and tested with, the draw time for this plot:
+
+<p align="middle">
+  <img src="/images/3000_dests_slow_1399.png" width="400" />
+</p>
+<p align="center">
+  Figure 3. High sector-count Example
+</p>
+
+is approximately 1400 seconds. This presents a problem.

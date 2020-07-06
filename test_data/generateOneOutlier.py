@@ -27,7 +27,7 @@ RByteCount = "0"
 
 with open("1_links.tsv", "w+") as f:
   f.write(top)
-  count = 10
+  count = 3000
   for j in range(count):
     if (j < 256):
       DIP = baseDIP + "0." + str(j)

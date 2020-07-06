@@ -270,7 +270,7 @@ makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", or
         circos.updatePlotRegion(sector.index = 1, track.index = 1, bg.col = "#ffff66", bg.border = "#BDBDBD")
       }
       
-      if (numSectors <= 50 && taskCount < 700) { # Draw normally
+      if (numSectors <= 99 && taskCount < 700) { # Draw normally
         for (j in 1:nrow(connections)) {
           currentFactor <- (connectionMapping %>% filter(DIP==connections$DIP[j]))$sector[1]
           circos.points(x = connections$TEND[j], y = connections$PacketCount[j], sector.index=1, col="#7B3294", pch=19)

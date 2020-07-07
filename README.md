@@ -29,7 +29,7 @@ A circle plot allows for visualization of a SIP's activity in a window of time, 
   Figure 2. Grid-Style Circle Plots
 </p>
 
-Comparing behaviors between SIPs can be done by organizing circle plots in a grid of small multiples (Tufte et al., 1990). As shown in Figure 2, we propose it is easy to get a gestalt of the types of outliers, which can give insight and build confidence in any subsequent clustering that might be performed. The grids in Figure 2 are sorted by the number of DIP segments, but other sorting mechanisms can be used.
+Comparing behaviors between SIPs can be done by organizing circle plots in a grid of small multiples (Tufte et al., 1990). As shown in Figure 2, we propose it is easy to get a gestalt of the types of outliers, which can give insight and build confidence in any subsequent clustering that might be performed. The grids in Figure 2 is sorted by the the cluster (calculated using K-Means), but other sorting mechanisms can be used.
 
 ### Problem Summary and Overview of Improvements
 

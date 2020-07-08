@@ -1,7 +1,5 @@
 # Importing libraries
-script.dir <- dirname(sys.frame(1)$ofile)
-currentPath <- paste0(script.dir,"/")
-source(paste0(currentPath,"includes/libs.R"))
+source("includes/libs.R")
 
 # Check whether user has provided core count or not
 if (exists("ncpCoreCount")) {
@@ -117,15 +115,19 @@ makeCirclesFromFile <- function(outlierFile, name=NULL, fileType="png", sortType
   
   # Check for subnet in outlier filename
   if (is.null(subnet)) {
-    subnet <- tryCatch(
-      {
-        str_split(file,"_")[[1]][2]
-      }, error = function(cond) {
-        NULL
-      }, warning = function(cond) {
-        NULL
-      }
-    )
+    if (str_count(file, pattern="_") > 1) { # Only check for subnet in filename if in this format: TIME_SUBNET_outliers
+      subnet <- tryCatch(
+        {
+          str_split(file,"_")[[1]][2]
+        }, error = function(cond) {
+          NULL
+        }, warning = function(cond) {
+          NULL
+        }
+      )
+    } else {
+      subnet <- NULL
+    }
   }
   
   # Call the main function with the provided parameters
@@ -158,8 +160,7 @@ makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", or
   
   # Set the working directory to the path of the name provided by the user
   filePath <- dirname(name)
-  #setwd(filePath)
-  
+
   # If banner is provided, use the banner. If no banner is provided, try to extract information about the time
   # the data was taken from the name of the output file passed by the user. If the name of the file given by
   # the user is not in the format '<EpochMinute>_outliers', banner the page the name passed by the user.
@@ -230,7 +231,6 @@ makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", or
       summarize(meanRPacketCount=mean(RPacketCount), meanPacketCount=mean(PacketCount), .groups="keep") %>% 
       arrange(meanRPacketCount) %>% 
       mutate(sector = row_number()+1)
-    #connectionMapping <- connections %>% distinct(DIP)  %>% mutate(sector = row_number()+1) # row_number+1 = section in circle plot
     destinationCount <- (connections %>% distinct(DIP) %>% tally())$n[1]
     taskCount <- (connections %>% tally())$n[1]
     source <- as.character(outliers$SIP[i]) # Grabbing the source IP
@@ -378,7 +378,7 @@ makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", or
       # Found that adding labels to destination sectors when there are any more than 10 results in overlapping text
       if (destinationCount <= 10) {
         for (j in 1:nrow(connectionMapping)) {
-          # Suppressing b/c we want the text of the destination IP to be printed outside of the plotting region
+          # Suppressing warning b/c we WANT the text of the destination IP to be printed outside of the plotting region
           suppressMessages(
           circos.text(x=((xRange[2]-xRange[1])/2)+xRange[1], y=packetMax+ uy(5, "mm"), sector.index=connectionMapping$sector[j], 
                       labels=maskIP(connectionMapping$DIP[j],mask), cex=1.75, niceFacing=TRUE, facing="bending"))

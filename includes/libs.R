@@ -1,17 +1,14 @@
-suppressMessages(library(optparse))
-suppressMessages(library(pracma))
-suppressMessages(library(doParallel))
-suppressMessages(library(tictoc))
-suppressMessages(library(circlize))
-suppressMessages(library(dplyr))
-suppressMessages(library(bitops))
-suppressMessages(library(tools))
-suppressMessages(library(anytime))
-suppressMessages(library(foreach))
-suppressMessages(library(grid))
-suppressMessages(library(png))
-suppressMessages(library(ggplot2))
-suppressMessages(library(gridExtra))
-suppressMessages(library(stringr))
-suppressMessages(library(vroom))
-suppressMessages(library(gtable))
+packages = c("optparse","pracma","doParallel","tictoc","circlize","dplyr","bitops",
+             "tools","anytime","foreach","grid","png","ggplot2","gridExtra","stringr",
+             "vroom","gtable")
+
+# If any packages are not installed, install them, otherwise, load them silently
+package.check <- lapply(
+  packages,
+  FUN = function(x) {
+    if (!suppressMessages(require(x, character.only = TRUE))) {
+      install.packages(x, dependencies = TRUE)
+      library(x, character.only = TRUE)
+    }
+  }
+)

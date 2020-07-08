@@ -50,7 +50,7 @@ If a plot contains 700 or more tasks but fewer than 250 sectors, there will be a
 
 If a plot contains over 250 sectors, individual sectors are no longer drawn, as they become too thin discern. Instead, two sectors are drawn: the SIP's sector, and the DIPs sector (which represents all DIPs, and is proportional in size to their share of the total number of sectors). The DIPs sector is then shaded, from light grey (250 sectors) to black (5000 sectors). In so doing, an extra visual cue is added, giving the viewer a sense of the number of DIPs contacted by the SIP. Also, a line spanning the DIPs sector is drawn to show the average number of packets sent by each DIP. And, because DIPs in all plots are arranged clockwise from smallest to largest by average RPacketCount, the line's y-value should only increase in the clockwise direction. 
 
-Overall, qualitative similarity has been prized throughout the optimization process, and any speedups unpreserving of the general look and feel of default plotting haven't been utilized. Below are a few examples of the different optimization tiers described above, along with a table of draw times. 
+Overall, qualitative similarity has been prioritized throughout the optimization process, and any speedups unpreserving of the general look and feel of default plotting haven't been utilized. Below are examples of the different optimization tiers described above, paired with a table of draw times. 
 
 
 Type  | 3000 DIPs |  300 DIPs  | 100 DIPs  | 10 DIPs
@@ -67,3 +67,50 @@ Fast  |  3.4s  |  2.4s  |  3.9s  |  3.1s
   Figure 4. Side-by-Side Comparison Of <i>Fast</i> and <i>Slow</i> Plots w/ Draw Times
 </p>
 
+### Documentation
+
+In the environment where this code is useful, the data from which these plots are created is stored in files and databases. It was therefore important for the main function to be callable from both the command-line and another R script. 
+
+#### makeCirclesFromFile.R
+
+<i>makeCirclesFromFile.R</i> is designed to be called from the command-line, using 'Rscript makeCirclesFromFile.R [Arguments]'. Issuing this command loads necessary libraries with the 'includes/libs.R' script, parses arguments with the 'includes/cmdArgs.R' script, loads the 'networkCirclePlots.R' script, and calls the function <i>makeCirclesFromFile(args)</i> to generate the plots. It takes a maximum of 10 arguments, but only one is required. It should be noted that this script should be used as an alternative way to call the function <i>makeCirclesFromeFile(args)</i>, and so all command-line arguments correspond to arguments that would be used in a call to that function. Arguments are parsed using the package <i>optparse</i>, so incorrect usage should result in an error along with an explanation. Inclusion of the '-h' flag will print a list of all possible arguments, and a description of how to use each:
+
+	-o FILENAME, --outlier_file=FILENAME
+		REQUIRED: Name of the outlier file (should include full path)
+
+	-t FILE_EXT, --type=FILE_EXT
+		Optional: File type of output {png,jpg,pdf}. Defaults to 'png'
+
+	-s STRING, --sort=STRING
+		Optional: Sorting type of plots in the output file {ip,cluster,threat}. Defaults to 'ip'
+
+	-a CHARACTER, --aspect_ratio=CHARACTER
+		Optional: Aspect ratio of output page {l=landscape,p=portrait}. Defaults to 'l'
+
+	-f, --fast
+		Optional: Enable plotting speedups. Without '-f', plots won't be drawn with speedups
+
+	-m STRING, --mask=STRING
+		Optional: Masking to be done to IPs {/0,/8,/16,/24,/32}. Defaults to '/0'. '/0' Masks the entire IP, '/32' masks nothing
+
+	-n STRING, --name=STRING
+		Optional: Name of the output file (includes path). Defaults to the outlier's filename
+
+	-d, --dests
+		Optional: Destination sectors of plots will be labeled with their corresponding IP if <10 destinations. Without '-d', no sectors will be labeled
+
+	-c INTEGER, --cores=INTEGER
+		Optional: Number of cores to use while drawing plots. Default behavior uses detectCores()-2
+
+	-b STRING, --banner=STRING
+		Optional: Banner (title) of the page of plots. Defaults to the name of the file, or, if the filename contains the epoch minute, the date of when the data was collected
+
+	-S STRING, --subnet=STRING
+		Optional: Subnet of the network being monitored. Defaults to null, but if null, checks for subnet in outlier filename between 'time_subnet_outliers.tsv'
+
+	-h, --help
+		Show this help message and exit
+    
+#### networkCirclePlots.R
+
+This is the main script, which contains the necessary functions for drawing plots. The two functions, <i>makeCirclesFromFile(args)</i> and <i>makeCircles(args)</i> are very similar, but as can be inferred, <i>makeCirclesFromFile(args)</i> takes the name of an outlier file as an argument, while <i>makeCircles(args)</i> takes two data frames: the 'outliers' data frame and the 'links' data frame. And, because <i>makeCircles(args)</i> is not given an existing filename, it also requires the name of the output file from the user (excluding the filetype, which is specified separately).

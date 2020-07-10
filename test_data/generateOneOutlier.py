@@ -27,7 +27,7 @@ RByteCount = "0"
 
 with open("1_links.tsv", "w+") as f:
   f.write(top)
-  count = 3000
+  count = 75
   for j in range(count):
     if (j < 256):
       DIP = baseDIP + "0." + str(j)
@@ -37,10 +37,12 @@ with open("1_links.tsv", "w+") as f:
     for i in range(15):
       TEND = str(i)
       line = TEND + "\t" + SIPS[0] + "\t" + DIP + "\t" + FlowCount + "\t" + ByteCount + "\t" + PacketCount + "\t" + RByteCount + "\t" + "0\n"
-      f.write(line)
+      if (rand.random() > 0.5):
+        f.write(line)
     if (rand.random() > 0.25):
       for i in range(15):
         RPacketCount = int(rand.random()*10)
         TEND = str(i+15)
         line = TEND + "\t" + SIPS[0] + "\t" + DIP + "\t" + FlowCount + "\t" + ByteCount + "\t" + PacketCount + "\t" + RByteCount + "\t" + str(RPacketCount) + "\n"
-        f.write(line)
+        if (rand.random() > 0.5):
+          f.write(line)

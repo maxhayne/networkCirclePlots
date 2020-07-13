@@ -1,4 +1,8 @@
 # networkCirclePlots
+
+<p align="center">
+  <img src="/images/ntp_3std_1.jpg" width="800" />
+</p>
 Software to speed up the drawing circle plots from network data.
 
 ### Introduction to the Network Circle Plot Visualization
@@ -23,7 +27,7 @@ A circle plot allows for visualization of a SIP's activity in a window of time, 
 <p align="middle">
   <!--<img src="/images/CirclePlot_Grid1.png" width="400" /> -->
   <!--<img src="/images/CirclePlot_Grid2.png" width="400" /> -->
-  <img src="/images/25_1_outliers.png" width="800" />
+  <img src="/images/ntp_10std_1.jpg" width="800" />
 </p>
 <p align="center">
   Figure 2. Grid-Style Circle Plots

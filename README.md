@@ -1,6 +1,7 @@
 # networkCirclePlots
 
-A new way to view traffic, building and optimizing <i>circlize</i>.
+A new way to view traffic, building on and optimizing <i>circlize</i>.
+<br/><br/>
 
 <p align="center">
   <img src="/images/ntp_3std_1.jpg" width="800" />

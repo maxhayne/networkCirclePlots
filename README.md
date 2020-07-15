@@ -1,6 +1,6 @@
 # networkCirclePlots
 
-A new way to view traffic, building on and optimizing <i>circlize</i>.
+A new way to view traffic, building on and optimizing [<i>circlize</i>](https://jokergoo.github.io/circlize_book/book/).
 <br/><br/>
 
 <p align="center">

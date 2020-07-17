@@ -21,7 +21,9 @@ option_list = list(
   make_option(c("-b", "--banner"), type="character", default=NULL,
               help="the banner (title) of the page of plots. defaults to the name of the file", metavar="string"),
   make_option(c("-S", "--subnet"), type="character", default=NULL,
-              help="the subnet of the network being monitored. defaults to null, but if null, checks for subnet in outlierFile name between '<time>_subnet_outliers.tsv'", metavar="string")
+              help="the subnet of the network being monitored. defaults to null, but if null, checks for subnet in outlierFile name between '<time>_subnet_outliers.tsv'", metavar="string"),
+  make_option(c("-M", "--max_data"), type="integer", default=NULL,
+              help="maximum packet count for a link or sector, above which a red dot or line will be drawn outside the sector [default= %default]", metavar="integer")
 )
 opt_parser = OptionParser(option_list=option_list)
 opt = parse_args(opt_parser)
@@ -107,6 +109,14 @@ if (is.null(opt$cores)) {
   }
 } else {
   stop("The number of cores must be an integer.")
+}
+
+if (is.null(opt$max_data)) {
+  maxData <<- NULL
+} else if (is.integer(opt$max_data)){
+  maxData <<- opt$max_data
+} else {
+  stop("The maximum must be an integer value.")
 }
 
 if (is.null(opt$banner)) {

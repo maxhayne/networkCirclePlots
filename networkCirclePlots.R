@@ -1,5 +1,10 @@
 # Importing libraries
-source("includes/libs.R")
+if (!suppressMessages(require("funr", character.only = TRUE))) {
+  install.packages("funr", dependencies = TRUE)
+  library("funr", character.only = TRUE)
+}
+currentDirectory <- dirname(sys.script())
+source(paste0(currentDirectory,"/includes/libs.R"))
 
 # Check whether user has provided core count or not
 if (exists("ncpCoreCount")) {
@@ -90,7 +95,7 @@ linksFileToDataFrame <- function(file) {
   return(links)
 }
 
-makeCirclesFromFile <- function(outlierFile, name=NULL, fileType="png", sortType="ip", orientation="l", fast=TRUE, mask="/0", dests=FALSE, banner=NULL, subnet=NULL) {
+makeCirclesFromFile <- function(outlierFile, name=NULL, fileType="png", sortType="ip", orientation="l", fast=TRUE, mask="/0", dests=FALSE, banner=NULL, subnet=NULL, max=NULL) {
 
   outliers <- outlierFileToDataFrame(outlierFile)
   linksFile <- gsub("outliers.tsv", "links.tsv", outlierFile)
@@ -131,11 +136,11 @@ makeCirclesFromFile <- function(outlierFile, name=NULL, fileType="png", sortType
   }
   
   # Call the main function with the provided parameters
-  makeCircles(outliers, links, name, banner=banner, fileType=fileType, sortType=sortType, orientation=orientation, fast=fast, mask=mask, dests=dests, subnet=subnet)
+  makeCircles(outliers, links, name, banner=banner, fileType=fileType, sortType=sortType, orientation=orientation, fast=fast, mask=mask, dests=dests, subnet=subnet, max=max)
 }
 
-makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", orientation="l", fast=TRUE, mask="/0", dests=FALSE, banner=NULL, subnet=NULL) {
-
+makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", orientation="l", fast=TRUE, mask="/0", dests=FALSE, banner=NULL, subnet=NULL, max=NULL) {
+  
   # If sorting on threat, that is the only column we can sort on
   if (sortType == "threat") {
     outliers <- outliers %>% arrange(desc(threatLevel))
@@ -216,6 +221,8 @@ makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", or
   # Set yRange
   yRange <- c(packetMin, packetMax)
   
+  if (is.null(max)) {max <- packetMax+1} # Set maximum to never be taken into account
+  
   # If fast plotting is enabled, there is a ceiling on how long the plot will take to draw, so pre-allocating
   # plots to cores will improve performance. If fast plotting is disabled, pre-allocating may assign one core
   # an unfair number of complex plots. This will slow the plotting process.
@@ -274,8 +281,12 @@ makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", or
         for (j in 1:nrow(connections)) {
           currentFactor <- (connectionMapping %>% filter(DIP==connections$DIP[j]))$sector[1]
           circos.points(x = connections$TEND[j], y = connections$PacketCount[j], sector.index=1, col="#7B3294", pch=19)
+          # Dot Max
+          if (connections$PacketCount[j] >= max) {suppressMessages(circos.points(x = connections$TEND[j], y = packetMax + uy(2, "mm"), sector.index=1, col="red", pch=19))}
           if (connections$RPacketCount[j] != 0) {
             circos.points(x = connections$TEND[j], y = connections$RPacketCount[j], sector.index=currentFactor, col="#7B3294", pch=19)
+            # Dot Max
+            if (connections$RPacketCount[j] >= max) {suppressMessages(circos.points(x = connections$TEND[j], y = packetMax + uy(2, "mm"), sector.index=currentFactor, col="red", pch=19))}
             circos.link(currentFactor, connections$TEND[j], 1, connections$TEND[j], col="#5AB4AC")
           } else {
             circos.link(currentFactor, connections$TEND[j], 1, connections$TEND[j], col="#D8B365")
@@ -363,9 +374,13 @@ makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", or
         connections <- connections %>% filter(DIP != connectionMapping$DIP[j])
         for (k in 1:nrow(dipConnections)) {
           circos.points(x = dipConnections$TEND[k], y = dipConnections$PacketCount[k], sector.index = 1, col = "#7B3294", pch=19)
+          # Dot Max
+          if (dipConnections$PacketCount[k] >= max) {suppressMessages(circos.points(x = dipConnections$TEND[k], y = packetMax + uy(2, "mm"), sector.index=1, col="red", pch=19))}
           if (dipConnections$RPacketCount[k] != 0) {
             circos.points(x = dipConnections$TEND[k], y = dipConnections$RPacketCount[k], sector.index = currentSector, col = "#7B3294", pch=19)
             circos.link(currentSector, dipConnections$TEND[k], 1, dipConnections$TEND[k], col = "#5AB4AC")
+            # Dot Max
+            if (dipConnections$PacketCount[k] >= max) {suppressMessages(circos.points(x = dipConnections$TEND[k], y = packetMax + uy(2, "mm"), sector.index=currentSector, col="red", pch=19))}
           } else {
             circos.link(currentSector, dipConnections$TEND[k], 1, dipConnections$TEND[k], col = "#D8B365")
           }
@@ -465,4 +480,3 @@ makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", or
     ggsave(path=filePath,filename=fileCombined, width=8.5, height=11, arrangedGrob)
   }
 }
-

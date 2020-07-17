@@ -86,9 +86,9 @@ server <- function(input, output) {
   
   output$image <- renderUI({
     if (strcmp(input$subnet,"None")) {
-      img(src=paste0(input$date,"/plots/", input$minute, "_outliers.png"), height="68%", width="68%")
+      img(src=paste0(input$date,"/plots/", input$minute, "_outliers.png"), height="80%", width="80%")
     } else {
-      img(src=paste0(input$date,"/plots/", input$minute, "_", input$subnet, "_outliers.png"), height="68%", width="68%")
+      img(src=paste0(input$date,"/plots/", input$minute, "_", input$subnet, "_outliers.png"), height="100%", width="100%")
     }
   })
 }

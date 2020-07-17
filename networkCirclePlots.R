@@ -280,16 +280,22 @@ makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", or
       if (numSectors <= 99 && taskCount < 700) { # Draw normally
         for (j in 1:nrow(connections)) {
           currentFactor <- (connectionMapping %>% filter(DIP==connections$DIP[j]))$sector[1]
-          circos.points(x = connections$TEND[j], y = connections$PacketCount[j], sector.index=1, col="#7B3294", pch=19)
-          # Dot Max
-          if (connections$PacketCount[j] >= max) {suppressMessages(circos.points(x = connections$TEND[j], y = packetMax + uy(2, "mm"), sector.index=1, col="red", pch=19))}
-          if (connections$RPacketCount[j] != 0) {
-            circos.points(x = connections$TEND[j], y = connections$RPacketCount[j], sector.index=currentFactor, col="#7B3294", pch=19)
-            # Dot Max
-            if (connections$RPacketCount[j] >= max) {suppressMessages(circos.points(x = connections$TEND[j], y = packetMax + uy(2, "mm"), sector.index=currentFactor, col="red", pch=19))}
-            circos.link(currentFactor, connections$TEND[j], 1, connections$TEND[j], col="#5AB4AC")
+          if (connections$PacketCount[j] >= max || connections$RPacketCount[j] >= max) {
+            circos.points(x = connections$TEND[j], y = connections$PacketCount[j], sector.index=1, col="#7B3294", pch=19)
+            if (connections$PacketCount[j] >= max) {suppressMessages(circos.points(x = connections$TEND[j], y = packetMax + uy(2, "mm"), sector.index=1, col="red", pch=19))}
+            if (connections$RPacketCount[j] != 0) {
+              circos.points(x = connections$TEND[j], y = connections$RPacketCount[j], sector.index=currentFactor, col="#7B3294", pch=19)
+              if (connections$RPacketCount[j] >= max) {suppressMessages(circos.points(x = connections$TEND[j], y = packetMax + uy(2, "mm"), sector.index=currentFactor, col="red", pch=19))}
+            }
+            circos.link(currentFactor, connections$TEND[j], 1, connections$TEND[j], col="red")
           } else {
-            circos.link(currentFactor, connections$TEND[j], 1, connections$TEND[j], col="#D8B365")
+            circos.points(x = connections$TEND[j], y = connections$PacketCount[j], sector.index=1, col="#7B3294", pch=19)
+            if (connections$RPacketCount[j] != 0) {
+              circos.points(x = connections$TEND[j], y = connections$RPacketCount[j], sector.index=currentFactor, col="#7B3294", pch=19)
+              circos.link(currentFactor, connections$TEND[j], 1, connections$TEND[j], col="#5AB4AC")
+            } else {
+              circos.link(currentFactor, connections$TEND[j], 1, connections$TEND[j], col="#D8B365")
+            }
           }
         }
       } else if (numSectors <= 250) { # Draw chords for each sector
@@ -373,16 +379,22 @@ makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", or
         dipConnections <- connections %>% filter(DIP==connectionMapping$DIP[j])
         connections <- connections %>% filter(DIP != connectionMapping$DIP[j])
         for (k in 1:nrow(dipConnections)) {
-          circos.points(x = dipConnections$TEND[k], y = dipConnections$PacketCount[k], sector.index = 1, col = "#7B3294", pch=19)
-          # Dot Max
-          if (dipConnections$PacketCount[k] >= max) {suppressMessages(circos.points(x = dipConnections$TEND[k], y = packetMax + uy(2, "mm"), sector.index=1, col="red", pch=19))}
-          if (dipConnections$RPacketCount[k] != 0) {
-            circos.points(x = dipConnections$TEND[k], y = dipConnections$RPacketCount[k], sector.index = currentSector, col = "#7B3294", pch=19)
-            circos.link(currentSector, dipConnections$TEND[k], 1, dipConnections$TEND[k], col = "#5AB4AC")
-            # Dot Max
-            if (dipConnections$PacketCount[k] >= max) {suppressMessages(circos.points(x = dipConnections$TEND[k], y = packetMax + uy(2, "mm"), sector.index=currentSector, col="red", pch=19))}
+          if (dipConnections$PacketCount[k] >= max || dipConnections$RPacketCount[k] >= max) {
+            circos.points(x = dipConnections$TEND[k], y = dipConnections$PacketCount[k], sector.index=1, col="#7B3294", pch=19)
+            if (dipConnections$PacketCount[k] >= max) {suppressMessages(circos.points(x = dipConnections$TEND[k], y = packetMax + uy(2, "mm"), sector.index=1, col="red", pch=19))}
+            if (dipConnections$RPacketCount[k] != 0) {
+              circos.points(x = dipConnections$TEND[k], y = dipConnections$RPacketCount[k], sector.index=currentSector, col="#7B3294", pch=19)
+              if (dipConnections$RPacketCount[k] >= max) {suppressMessages(circos.points(x = dipConnections$TEND[k], y = packetMax + uy(2, "mm"), sector.index=currentSector, col="red", pch=19))}
+            }
+            circos.link(currentSector, dipConnections$TEND[k], 1, dipConnections$TEND[k], col="red")
           } else {
-            circos.link(currentSector, dipConnections$TEND[k], 1, dipConnections$TEND[k], col = "#D8B365")
+            circos.points(x = dipConnections$TEND[k], y = dipConnections$PacketCount[k], sector.index=1, col="#7B3294", pch=19)
+            if (dipConnections$RPacketCount[k] != 0) {
+              circos.points(x = dipConnections$TEND[k], y = dipConnections$RPacketCount[k], sector.index=currentSector, col="#7B3294", pch=19)
+              circos.link(currentSector, dipConnections$TEND[k], 1, dipConnections$TEND[k], col="#5AB4AC")
+            } else {
+              circos.link(currentSector, dipConnections$TEND[k], 1, dipConnections$TEND[k], col="#D8B365")
+            }
           }
         }
       }

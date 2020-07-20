@@ -8,13 +8,14 @@ clusterCenter = "0"
 
 SIPS = []
 
-with open("25_1_outliers.tsv", "w+") as f:
+with open("test_1_outliers.tsv", "w+") as f:
 	f.write(top)
-	for i in range(25):
+	numPlots = 400
+	for i in range(numPlots):
 		SIP = baseSIP + str(i)
-		threatLevel = str(24-i)
-		if i < 24:
-		  if i < 11:
+		threatLevel = str(numPlots-1-i)
+		if i < int(numPlots/2):
+		  if i < int(numPlots/4):
 		    clusterCenter = str(3)
 		  else:
 		    clusterCenter = str(2)
@@ -35,10 +36,10 @@ ByteCount = "0"
 PacketCount = "1"
 RByteCount = "0"
 
-with open("25_1_links.tsv", "w+") as f:
+with open("test_1_links.tsv", "w+") as f:
 	f.write(top)
 	for i in range(len(SIPS)):
-		count = 99 + (100*i)
+		count = 10 + (1*i)
 
 		for j in range(count):
 			if (j < 256):

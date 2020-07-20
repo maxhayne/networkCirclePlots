@@ -184,6 +184,8 @@ makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", or
     )
   }
   
+  # Just a change to differentiate!!! Another change to differentiate
+  
   #Creating image file title to which plots will be saved
   fileCombined <- paste0(file,".",fileType)
   

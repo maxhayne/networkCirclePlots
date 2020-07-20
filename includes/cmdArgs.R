@@ -23,7 +23,9 @@ option_list = list(
   make_option(c("-S", "--subnet"), type="character", default=NULL,
               help="the subnet of the network being monitored. defaults to null, but if null, checks for subnet in outlierFile name between '<time>_subnet_outliers.tsv'", metavar="string"),
   make_option(c("-M", "--max-data"), type="integer", default=NULL,
-              help="maximum packet count for a link or sector, above which a red dot or line will be drawn outside the sector [default= %default]", metavar="integer")
+              help="maximum packet count for a link or sector, above which a red dot or line will be drawn outside the sector [default= %default]", metavar="integer"),
+  make_option(c("-D", "--data-column"), type="character", default="packet",
+              help="the data column in the 'links' file to use as the y-value in every sectors' plot {flow=FlowCount,byte=ByteCount,packet=PacketCount} [default= %default]", metavar="string")
 )
 opt_parser = OptionParser(option_list=option_list)
 opt = parse_args(opt_parser)
@@ -141,4 +143,15 @@ if (is.null(opt$subnet)) {
   subnet <<- NULL
 } else {
   subnet <<- opt$subnet
+}
+
+# Logic for data column
+if (strcmpi(opt$'data-column', "packet")) {
+  dataColumn <<- "packet"
+} else if (strcmpi(opt$'data-column', "byte")){
+  dataColumn <<- "byte"
+} else if (strcmpi(opt$'data-column', "flow")) {
+  dataColumn <<- "flow"
+} else {
+  stop("The data column must be set to one of the three:'packet', 'byte', or 'flow'.")
 }

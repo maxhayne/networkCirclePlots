@@ -92,7 +92,7 @@ linksFileToDataFrame <- function(file) {
   return(links)
 }
 
-makeCirclesFromFile <- function(outlierFile, name=NULL, fileType="png", sortType="ip", orientation="l", fast=TRUE, mask="/0", dests=FALSE, banner=NULL, subnet=NULL, max=NULL) {
+makeCirclesFromFile <- function(outlierFile, name=NULL, fileType="png", sortType="ip", orientation="l", fast=TRUE, mask="/0", dests=FALSE, dataColumn="packet", banner=NULL, subnet=NULL, max=NULL) {
 
   outliers <- outlierFileToDataFrame(outlierFile)
   linksFile <- gsub("outliers.tsv", "links.tsv", outlierFile)
@@ -133,14 +133,37 @@ makeCirclesFromFile <- function(outlierFile, name=NULL, fileType="png", sortType
   }
   
   # Call the main function with the provided parameters
-  makeCircles(outliers, links, name, banner=banner, fileType=fileType, sortType=sortType, orientation=orientation, fast=fast, mask=mask, dests=dests, subnet=subnet, max=max)
+  makeCircles(outliers, links, name, banner=banner, fileType=fileType, sortType=sortType, orientation=orientation, fast=fast, mask=mask, dests=dests, subnet=subnet, max=max, dataColumn=dataColumn)
 }
 
-makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", orientation="l", fast=TRUE, mask="/0", dests=FALSE, banner=NULL, subnet=NULL, max=NULL) {
+makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", orientation="l", fast=TRUE, mask="/0", dests=FALSE, dataColumn="packet", banner=NULL, subnet=NULL, max=NULL) {
   
   # In order to dynamically pass column names to sort on, one must always use the column name parameter in this fashion: !!as.name(parameter)
   # Think about thickening red links to make plots with sparse interactions more noticeable
+
+  # Creating generalized variables which can be used in the same context to specify different columns in 'dplyr'
+  if (strcmpi(dataColumn, "packet")) {
+    colName <- "PacketCount"
+    RcolName <- "RPacketCount"
+    dataColumn <- as.name(colName)
+    RdataColumn <- as.name(RcolName)
+  } else if (strcmpi(dataColumn, "byte")) {
+    colName <- "ByteCount"
+    RcolName <- "RByteCount"
+    dataColumn <- as.name(colName)
+    RdataColumn <- as.name(RcolName)
+  } else if (strcmpi(dataColumn, "flow")) {
+    colName <- "FlowCount"
+    RcolName <- "FlowCount"
+    dataColumn <- as.name(colName)
+    RdataColumn <- as.name(RcolName)
+  } else {
+    stop("dataColumn must be equal to 'packet', 'byte' or 'flow' (to represent PacketCount, ByteCount, or FlowCount)")
+  }
   
+  print(colName)
+  print(RcolName)
+
   # If sorting on threat, that is the only column we can sort on
   if (sortType == "threat") {
     outliers <- outliers %>% arrange(desc(threatLevel))
@@ -195,50 +218,51 @@ makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", or
     xRange <- c(timeSummary$startTime[1], timeSummary$endTime[1])
   }
   
-  # Find minimum and maximum packets received or sent for a row, for y-axis configuration, set yRange
-  # The first if-statement compares the maxes in PacketCount and RPacketCount, setting packetMax to the
-  # greater value. The second if-statement compares minimums, and sets packetMin to the lower of the two
-  packetSummary <- links %>% summarize(pMin = min(PacketCount), pMax = max(PacketCount), rpMin = min(RPacketCount), rpMax = max(RPacketCount))
+  # Find minimum and maximum data received or sent for a row, for y-axis configuration, set yRange
+  dataSummary <- links %>% summarize(dMin = min(!!dataColumn), dMax = max(!!dataColumn), rdMin = min(!!RdataColumn), rdMax = max(!!RdataColumn))
+  print(dataSummary)
+  dataSummary <- links %>% summarize(dMin = min(!!dataColumn), dMax = max(!!dataColumn), rdMin = min(!!RdataColumn), rdMax = max(!!RdataColumn))
+  print(dataSummary)
   # Set highest maximum
-  if (packetSummary$pMax[1] > packetSummary$rpMax[1]) {
-    packetMax <- packetSummary$pMax[1]
+  if (dataSummary$dMax[1] > dataSummary$rdMax[1]) {
+    dataMax <- dataSummary$dMax[1]
   } else {
-    packetMax <- packetSummary$rpMax[1]
+    dataMax <- dataSummary$rdMax[1]
   }
   # Set lowest minimum
-  if (packetSummary$pMin[1] < packetSummary$rpMin[1]) {
-    packetMin <- packetSummary$pMin[1]
+  if (dataSummary$dMin[1] < dataSummary$rdMin[1]) {
+    dataMin <- dataSummary$dMin[1]
   } else {
-    packetMin <- packetSummary$rpMin[1]
+    dataMin <- dataSummary$rdMin[1]
   }
-  if (packetMin == packetMax) { # correct bad bounds
-    packetMin <- 0
-    if (packetMax == 0) {
-      packetMax <- 1
+  if (dataMin == dataMax) { # correct bad bounds
+    dataMin <- 0
+    if (dataMax == 0) {
+      dataMax <- 1
     } else {
-      packetMax <- packetMax*2
+      dataMax <- dataMax*2
     }
   }
   
   # Set yRange
-  yRange <- c(packetMin, packetMax)
+  yRange <- c(dataMin, dataMax)
   
-  if (is.null(max)) {max <- packetMax+1} # Set maximum to never be taken into account
+  if (is.null(max)) {max <- dataMax+1} # Set maximum to never be taken into account
   
   # If fast plotting is enabled, there is a ceiling on how long the plot will take to draw, so pre-allocating
   # plots to cores will improve performance. If fast plotting is disabled, pre-allocating may assign one core
   # an unfair number of complex plots. This will slow the plotting process.
   if (fast) {mcoptions <- list(preschedule=TRUE)}
   else {mcoptions <- list(preschedule=FALSE)}
-  plot.list <- foreach (i = 1:nrow(outliers), .options.multicore=mcoptions) %dopar% {
+  plot.list <- foreach (i = 1:nrow(outliers), .options.multicore=mcoptions, .verbose=TRUE) %dopar% {
     tempName <- tempfile(pattern = "outlier", tmpdir = tempdir(), fileext = ".png") # generate a temporary filename
     png(tempName, width = 700, height = 700)
-
+    
     # Gathering all rows from which data was transferred to or from the source IP, sorted by destination IP
     connections <- links %>% filter(SIP == outliers$SIP[i]) %>% arrange(DIP)
     connectionMapping <- connections %>% group_by(DIP) %>% 
-      summarize(meanRPacketCount=mean(RPacketCount), meanPacketCount=mean(PacketCount), .groups="keep") %>% 
-      arrange(meanRPacketCount) %>% 
+      summarize(meanRDataCount=mean(!!RdataColumn), meanDataCount=mean(!!dataColumn), .groups="keep") %>% 
+      arrange(meanRDataCount) %>% 
       mutate(sector = row_number()+1)
     destinationCount <- (connections %>% distinct(DIP) %>% tally())$n[1]
     taskCount <- (connections %>% tally())$n[1]
@@ -282,18 +306,18 @@ makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", or
       if (numSectors <= 99 && taskCount < 700) { # Draw normally
         for (j in 1:nrow(connections)) {
           currentFactor <- (connectionMapping %>% filter(DIP==connections$DIP[j]))$sector[1]
-          if (connections$PacketCount[j] >= max || connections$RPacketCount[j] >= max) {
-            circos.points(x = connections$TEND[j], y = connections$PacketCount[j], sector.index=1, col="#7B3294", pch=19)
-            if (connections$PacketCount[j] >= max) {suppressMessages(circos.points(x = connections$TEND[j], y = packetMax + uy(2, "mm"), sector.index=1, col="red", pch=19))}
-            if (connections$RPacketCount[j] != 0) {
-              circos.points(x = connections$TEND[j], y = connections$RPacketCount[j], sector.index=currentFactor, col="#7B3294", pch=19)
-              if (connections$RPacketCount[j] >= max) {suppressMessages(circos.points(x = connections$TEND[j], y = packetMax + uy(2, "mm"), sector.index=currentFactor, col="red", pch=19))}
+          if (connections[[dataColumn]][j] >= max || connections[[RdataColumn]][j] >= max) {
+            circos.points(x = connections$TEND[j], y = connections[[dataColumn]][j], sector.index=1, col="#7B3294", pch=19)
+            if (connections[[dataColumn]][j] >= max) {suppressMessages(circos.points(x = connections$TEND[j], y = dataMax + uy(2, "mm"), sector.index=1, col="red", pch=19))}
+            if (connections[[RdataColumn]][j] != 0) {
+              circos.points(x = connections$TEND[j], y = connections[[RdataColumn]][j], sector.index=currentFactor, col="#7B3294", pch=19)
+              if (connections[[RdataColumn]][j] >= max) {suppressMessages(circos.points(x = connections$TEND[j], y = dataMax + uy(2, "mm"), sector.index=currentFactor, col="red", pch=19))}
             }
             circos.link(currentFactor, connections$TEND[j], 1, connections$TEND[j], col="red")
           } else {
-            circos.points(x = connections$TEND[j], y = connections$PacketCount[j], sector.index=1, col="#7B3294", pch=19)
-            if (connections$RPacketCount[j] != 0) {
-              circos.points(x = connections$TEND[j], y = connections$RPacketCount[j], sector.index=currentFactor, col="#7B3294", pch=19)
+            circos.points(x = connections$TEND[j], y = connections[[dataColumn]][j], sector.index=1, col="#7B3294", pch=19)
+            if (connections[[RdataColumn]][j] != 0) {
+              circos.points(x = connections$TEND[j], y = connections[[RdataColumn]][j], sector.index=currentFactor, col="#7B3294", pch=19)
               circos.link(currentFactor, connections$TEND[j], 1, connections$TEND[j], col="#5AB4AC")
             } else {
               circos.link(currentFactor, connections$TEND[j], 1, connections$TEND[j], col="#D8B365")
@@ -302,31 +326,31 @@ makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", or
         }
       } else if (numSectors <= 250) { # Draw chords for each sector
         groupedConnections <- connections %>% group_by(DIP) %>% 
-          summarize(meanRPacketCount=mean(RPacketCount), meanPacketCount=mean(PacketCount), .groups="keep")
+          summarize(meanRDataCount=mean(!!RdataColumn), meanDataCount=mean(!!dataColumn), .groups="keep")
         # Want chord to not take up the full xRange, but, 90%, looks less cluttered
         chordMax <- xRange[2]*0.95
         chordMin <- xRange[1] + xRange[2]*0.05
         chordRange <- c(chordMin, chordMax)
         for (j in 1:nrow(groupedConnections)) {
           currentSector <- (connectionMapping %>% filter(DIP==groupedConnections$DIP[j]))$sector[1]
-          if (groupedConnections$meanRPacketCount[j] > 0) {
+          if (groupedConnections$meanRDataCount[j] > 0) {
             circos.link(currentSector, chordRange, 1, chordRange, col="#5AB4AC")
-            meanPackets <- groupedConnections$meanRPacketCount[j]
+            meanPackets <- groupedConnections$meanRDataCount[j]
             circos.lines(x=xRange, y=c(meanPackets,meanPackets), sector.index=currentSector, col="#7B3294", lwd=5)
           } else {
             circos.link(currentSector, chordRange, 1, chordRange, col="#D8B365")
           }
-          meanPackets <- groupedConnections$meanPacketCount[j]
+          meanPackets <- groupedConnections$meanDataCount[j]
           circos.lines(x=xRange, y=c(meanPackets,meanPackets), sector.index=1, col="#7B3294", lwd = 2)
         }
       } else { # Draw chords for consecutive and same-colored sectors
         groupedConnections <- connections %>% group_by(DIP) %>% 
-          summarize(meanRPacketCount=mean(RPacketCount), meanPacketCount=mean(PacketCount), .groups="keep") %>% 
-          arrange(meanRPacketCount)
+          summarize(meanRDataCount=mean(!!RdataColumn), meanDataCount=mean(!!dataColumn), .groups="keep") %>% 
+          arrange(meanRDataCount)
         
-        # Plotting increasing means in RPacketCount around the circle. Reducing the number of points to draw by four.
+        # Plotting increasing means in !!RdataColumn around the circle. Reducing the number of points to draw by four.
         # For 2500 sectors, this process takes about 0.8 seconds.
-        yPoints <- (groupedConnections %>% filter(meanRPacketCount != 0))[['meanRPacketCount']]
+        yPoints <- (groupedConnections %>% filter(meanRDataCount != 0))[['meanRDataCount']]
         xPoints <- c((1+(destSectors-length(yPoints))):destSectors)
         yPointsReduced <- vector(mode="numeric", length = as.integer(length(yPoints)/4))
         xPointsReduced <- vector(mode="numeric", length = as.integer(length(xPoints)/4))
@@ -336,14 +360,14 @@ makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", or
         }
         circos.lines(x=xPointsReduced, y=yPointsReduced, sector.index=2, col="#7B3294", lwd=6)
         
-        if (groupedConnections$meanRPacketCount[1] > 0) {
+        if (groupedConnections$meanRDataCount[1] > 0) {
           chordColor <- TRUE
         } else {
           chordColor <- FALSE
         }
         chordBegin <- 1
         for (j in 2:nrow(groupedConnections)) {
-          if (groupedConnections$meanRPacketCount[j] > 0) {
+          if (groupedConnections$meanRDataCount[j] > 0) {
             jColor <- TRUE
           } else {
             jColor <- FALSE 
@@ -381,18 +405,18 @@ makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", or
         dipConnections <- connections %>% filter(DIP==connectionMapping$DIP[j])
         connections <- connections %>% filter(DIP != connectionMapping$DIP[j])
         for (k in 1:nrow(dipConnections)) {
-          if (dipConnections$PacketCount[k] >= max || dipConnections$RPacketCount[k] >= max) {
-            circos.points(x = dipConnections$TEND[k], y = dipConnections$PacketCount[k], sector.index=1, col="#7B3294", pch=19)
-            if (dipConnections$PacketCount[k] >= max) {suppressMessages(circos.points(x = dipConnections$TEND[k], y = packetMax + uy(2, "mm"), sector.index=1, col="red", pch=19))}
-            if (dipConnections$RPacketCount[k] != 0) {
-              circos.points(x = dipConnections$TEND[k], y = dipConnections$RPacketCount[k], sector.index=currentSector, col="#7B3294", pch=19)
-              if (dipConnections$RPacketCount[k] >= max) {suppressMessages(circos.points(x = dipConnections$TEND[k], y = packetMax + uy(2, "mm"), sector.index=currentSector, col="red", pch=19))}
+          if (dipConnections[[dataColumn]][k] >= max || dipConnections[[RdataColumn]][k] >= max) {
+            circos.points(x = dipConnections$TEND[k], y = dipConnections[[dataColumn]][k], sector.index=1, col="#7B3294", pch=19)
+            if (dipConnections[[dataColumn]][k] >= max) {suppressMessages(circos.points(x = dipConnections$TEND[k], y = dataMax + uy(2, "mm"), sector.index=1, col="red", pch=19))}
+            if (dipConnections[[RdataColumn]][k] != 0) {
+              circos.points(x = dipConnections$TEND[k], y = dipConnections[[RdataColumn]][k], sector.index=currentSector, col="#7B3294", pch=19)
+              if (dipConnections[[RdataColumn]][k] >= max) {suppressMessages(circos.points(x = dipConnections$TEND[k], y = dataMax + uy(2, "mm"), sector.index=currentSector, col="red", pch=19))}
             }
             circos.link(currentSector, dipConnections$TEND[k], 1, dipConnections$TEND[k], col="red")
           } else {
-            circos.points(x = dipConnections$TEND[k], y = dipConnections$PacketCount[k], sector.index=1, col="#7B3294", pch=19)
-            if (dipConnections$RPacketCount[k] != 0) {
-              circos.points(x = dipConnections$TEND[k], y = dipConnections$RPacketCount[k], sector.index=currentSector, col="#7B3294", pch=19)
+            circos.points(x = dipConnections$TEND[k], y = dipConnections[[dataColumn]][k], sector.index=1, col="#7B3294", pch=19)
+            if (dipConnections[[RdataColumn]][k] != 0) {
+              circos.points(x = dipConnections$TEND[k], y = dipConnections[[RdataColumn]][k], sector.index=currentSector, col="#7B3294", pch=19)
               circos.link(currentSector, dipConnections$TEND[k], 1, dipConnections$TEND[k], col="#5AB4AC")
             } else {
               circos.link(currentSector, dipConnections$TEND[k], 1, dipConnections$TEND[k], col="#D8B365")
@@ -409,8 +433,8 @@ makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", or
         for (j in 1:nrow(connectionMapping)) {
           # Suppressing warning b/c we WANT the text of the destination IP to be printed outside of the plotting region
           suppressMessages(
-          circos.text(x=((xRange[2]-xRange[1])/2)+xRange[1], y=packetMax+ uy(5, "mm"), sector.index=connectionMapping$sector[j], 
-                      labels=maskIP(connectionMapping$DIP[j],mask), cex=1.75, niceFacing=TRUE, facing="bending"))
+            circos.text(x=((xRange[2]-xRange[1])/2)+xRange[1], y=dataMax+ uy(5, "mm"), sector.index=connectionMapping$sector[j], 
+                        labels=maskIP(connectionMapping$DIP[j],mask), cex=1.75, niceFacing=TRUE, facing="bending"))
         }
       }
     }
@@ -446,7 +470,7 @@ makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", or
     
     # Masking the title of the plot
     source <- maskIP(source,mask)
-
+    
     # Setting the title for each individual plot
     if (sortType == "cluster") {
       cluster <- outliers$clusterCenter[i]

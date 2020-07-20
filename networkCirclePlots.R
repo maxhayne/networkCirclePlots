@@ -141,6 +141,8 @@ makeCirclesFromFile <- function(outlierFile, name=NULL, fileType="png", sortType
 
 makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", orientation="l", fast=TRUE, mask="/0", dests=FALSE, banner=NULL, subnet=NULL, max=NULL) {
   
+  # In order to dynamically pass column names to sort on, one must always use the column name parameter in this fashion: !!as.name(parameter)
+  
   # If sorting on threat, that is the only column we can sort on
   if (sortType == "threat") {
     outliers <- outliers %>% arrange(desc(threatLevel))
@@ -185,7 +187,7 @@ makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", or
   #Creating image file title to which plots will be saved
   fileCombined <- paste0(file,".",fileType)
   
-  # Find minimum and maximum TEND, set xRange
+  # Find min and max timstamps in links file, will standardize the range of the x-axis for all plots
   timeSummary <- links %>% summarize(startTime = min(TEND), endTime = max(TEND))
   if (timeSummary$startTime[1] == timeSummary$endTime[1]) { # correcting bad bounds
     xRange <- c(timeSummary$endTime[1]-30, timeSummary$endTime[1])
@@ -464,7 +466,6 @@ makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", or
   }
   
   circos.clear() # Clearing again, warnings are thrown occasionally 
-  
   arrangedGrob <- arrangeGrob(grobs=plot.list, nrow=rows, ncol=cols, top=textGrob(as.character(banner), gp=gpar(fontsize=8)))
   #gtable_show_layout(arrangedGrob)
   

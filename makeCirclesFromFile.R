@@ -1,10 +1,6 @@
-# Importing libraries
-if (!suppressMessages(require("funr", character.only = TRUE))) {
-  install.packages("funr", dependencies = TRUE)
-  library("funr", character.only = TRUE)
-}
+if (!suppressMessages(require("pacman"))) install.packages("pacman")
+pacman::p_load("pracma", "funr", "optparse", "parallel", "tictoc")
 currentDirectory <- dirname(sys.script())
-source(paste0(currentDirectory,"/includes/libs.R"))
 
 outlierFile <- NULL
 fileType <- NULL
@@ -19,6 +15,7 @@ ncpCoreCount <- NULL
 maxData <- NULL
 
 source(paste0(currentDirectory,"/includes/cmdArgs.R"))
+source(paste0(currentDirectory,"/includes/libs.R"))
 source(paste0(currentDirectory,"/networkCirclePlots.R"))
 
 # Calling circle plotting function

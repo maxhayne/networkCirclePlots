@@ -1,8 +1,5 @@
 # Importing libraries
-if (!suppressMessages(require("funr", character.only = TRUE))) {
-  install.packages("funr", dependencies = TRUE)
-  library("funr", character.only = TRUE)
-}
+if (!suppressMessages(require("funr"))) install.packages("funr")
 currentDirectory <- dirname(sys.script())
 source(paste0(currentDirectory,"/includes/libs.R"))
 
@@ -142,6 +139,7 @@ makeCirclesFromFile <- function(outlierFile, name=NULL, fileType="png", sortType
 makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", orientation="l", fast=TRUE, mask="/0", dests=FALSE, banner=NULL, subnet=NULL, max=NULL) {
   
   # In order to dynamically pass column names to sort on, one must always use the column name parameter in this fashion: !!as.name(parameter)
+  # Think about thickening red links to make plots with sparse interactions more noticeable
   
   # If sorting on threat, that is the only column we can sort on
   if (sortType == "threat") {

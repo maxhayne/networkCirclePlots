@@ -14,6 +14,7 @@ subnet <- NULL
 ncpCoreCount <- NULL
 maxData <- NULL
 dataColumn <- NULL
+hRatio <- NULL
 
 source(paste0(currentDirectory,"/includes/cmdArgs.R"))
 source(paste0(currentDirectory,"/includes/libs.R"))
@@ -21,5 +22,5 @@ source(paste0(currentDirectory,"/networkCirclePlots.R"))
 
 # Calling circle plotting function
 tic()
-makeCirclesFromFile(outlierFile, name=name, fileType=fileType, sortType=sortType, fast=fast, mask=mask, dests=dests, orientation=orientation, banner=banner, subnet=subnet, max=maxData, dataColumn=dataColumn)
+makeCirclesFromFile(outlierFile, name=name, fileType=fileType, sortType=sortType, fast=fast, mask=mask, dests=dests, orientation=orientation, banner=banner, subnet=subnet, max=maxData, dataColumn=dataColumn, hRatio=hRatio)
 toc()

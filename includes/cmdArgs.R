@@ -25,7 +25,9 @@ option_list = list(
   make_option(c("-M", "--max-data"), type="integer", default=NULL,
               help="maximum packet count for a link or sector, above which a red dot or line will be drawn outside the sector [default= %default]", metavar="integer"),
   make_option(c("-D", "--data-column"), type="character", default="packet",
-              help="the data column in the 'links' file to use as the y-value in every sectors' plot {flow=FlowCount,byte=ByteCount,packet=PacketCount} [default= %default]", metavar="string")
+              help="the data column in the 'links' file to use as the y-value in every sectors' plot {flow=FlowCount,byte=ByteCount,packet=PacketCount} [default= %default]", metavar="string"),
+  make_option(c("-H", "--h-ratio"), type="double", default="0.7",
+              help="a double between 0 and 1. closer to 0, the apex of a curved link drawn between two points passes nearer to the center of the circle plot [default= %default]", metavar="double")
 )
 opt_parser = OptionParser(option_list=option_list)
 opt = parse_args(opt_parser)
@@ -154,4 +156,17 @@ if (strcmpi(opt$'data-column', "packet")) {
   dataColumn <<- "flow"
 } else {
   stop("The data column must be set to one of the three:'packet', 'byte', or 'flow'.")
+}
+
+# Logic for h-ratio
+if (is.null(opt$'h-ratio')) {
+  hRatio <<- 0.7
+} else {
+  if (opt$'h-ratio' > 1) {
+    hRatio <<- 0.9
+  } else if (opt$'h-ratio' < 0) {
+    hRatio <<- 0.1
+  } else {
+    hRatio <<- opt$'h-ratio'
+  }
 }

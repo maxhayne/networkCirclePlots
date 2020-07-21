@@ -92,7 +92,100 @@ linksFileToDataFrame <- function(file) {
   return(links)
 }
 
-makeCirclesFromFile <- function(outlierFile, name=NULL, fileType="png", sortType="ip", orientation="l", fast=TRUE, mask="/0", dests=FALSE, dataColumn="packet", banner=NULL, subnet=NULL, max=NULL) {
+checkLinksDataFrame <- function(links) {
+  columnNames <- colnames(links)
+  correctColumnNames <- c("TEND","SIP","DIP","FlowCount","ByteCount","PacketCount","RByteCount","RPacketCount")
+  diff <- setdiff(correctColumnNames, columnNames)
+  if (length(diff) > 0) {
+    msg <- paste0("The 'links' dataframe must contain these columns (case-sensitive): ",  paste(diff,collapse=","), ".")
+    stop(msg)
+  }
+  positions <- which(correctColumnNames %in% columnNames)
+  columnTypes <- as.vector(sapply(links, class))
+  correctColumnTypes <- c("integer", "character", "character", "integer", "integer", "integer", "integer", "integer")
+  for (i in 1:length(correctColumnTypes)) {
+    if (!strcmp(correctColumnTypes[i], columnTypes[positions[i]])) {
+      msg <- paste0("In the 'links' data frame: column '", columnNames[positions[i]], "' must be of type '", correctColumnTypes[i], "'. It is of type '", columnTypes[positions[i]],"'.")
+      stop(msg)
+    }
+  }
+}
+
+checkOutliersDataFrame <- function(outliers) {
+  columnNames <- colnames(outliers)
+  correctColumnNames <- c("TEND","PROTOCOL","DPORT","SIP","PASS","clusterCenter","threatLevel")
+  diff <- setdiff(correctColumnNames, columnNames)
+  if (length(diff) > 0) {
+    msg <- paste0("The 'outliers' dataframe must contain these columns (case-sensitive): ", paste(diff,collapse=","), ".")
+    stop(msg)
+  }
+  positions <- which(correctColumnNames %in% columnNames)
+  columnTypes <- as.vector(sapply(outliers, class))
+  correctColumnTypes <- c("integer", "character", "integer", "character", "integer", "integer", "numeric")
+  for (i in 1:length(correctColumnTypes)) {
+    if (!strcmp(correctColumnTypes[i], columnTypes[positions[i]])) {
+      msg <- paste0("In the 'outliers' data frame: column '", columnNames[positions[i]], "' must be of type '", correctColumnTypes[i], "'. It is of type '", columnTypes[positions[i]],"'.")
+      stop(msg)
+    }
+  }
+}
+
+checkFileType <- function(fileType) {
+  types <- c("jpg", "jpeg", "png", "pdf")
+  lowerFileType <- tolower(fileType)
+  if (!(lowerFileType %in% types)) {
+    msg <- paste0("The fileType must be one of the following: ", paste(types, collapse=","), ".")
+    stop(msg)
+  }
+  return(lowerFileType)
+}
+
+checkOrientation <- function(orientation) {
+  lowerOrientation <- tolower(orientation) 
+  if (!strcmp(lowerOrientation, "l") && !strcmp(lowerOrientation, "p")) {
+    msg <- "The orientation must be either 'l' (landscape) or 'p' (portrait)."
+    stop(msg)
+  }
+  return(lowerOrientation)
+}
+
+checkSortType <- function(sortType) {
+  types <- c("cluster", "threat", "ip")
+  lowerSortType <- tolower(sortType)
+  if (!(lowerSortType %in% types)) {
+    msg <- paste0("The sortType must be one of the following: ", paste(types, collapse=","), ".")
+    stop(msg)
+  }
+  return(lowerSortType)
+}
+
+checkMask <- function(mask) {
+  types <- c("/0","/8","/16","/24","/32")
+  if (!(mask %in% types)) {
+    msg <- paste0("The mask must be one of the following: ", paste(types, collapse=","), ".")
+    stop(msg)
+  }
+}
+
+checkHRatio <- function(hRatio) {
+  if (is.numeric(hRatio) && hRatio >= 0 && hRatio <= 1) {
+    return(hRatio)
+  } else {
+    msg <- "hRatio must be a decimal number between 0 and 1 (inclusive)."
+    stop(msg)
+  }
+}
+
+checkMax <- function(max) {
+  if (!is.null(max)) {
+    if (!is.numeric(max)) {
+      msg <- "The max value must be numeric."
+      stop(msg)
+    }
+  }
+}
+
+makeCirclesFromFile <- function(outlierFile, name=NULL, fileType="png", sortType="ip", orientation="l", fast=TRUE, mask="/0", dests=FALSE, dataColumn="packet", hRatio=0.7, banner=NULL, subnet=NULL, max=NULL) {
 
   outliers <- outlierFileToDataFrame(outlierFile)
   linksFile <- gsub("outliers.tsv", "links.tsv", outlierFile)
@@ -133,13 +226,20 @@ makeCirclesFromFile <- function(outlierFile, name=NULL, fileType="png", sortType
   }
   
   # Call the main function with the provided parameters
-  makeCircles(outliers, links, name, banner=banner, fileType=fileType, sortType=sortType, orientation=orientation, fast=fast, mask=mask, dests=dests, subnet=subnet, max=max, dataColumn=dataColumn)
+  makeCircles(outliers, links, name, banner=banner, fileType=fileType, sortType=sortType, orientation=orientation, fast=fast, mask=mask, dests=dests, subnet=subnet, max=max, dataColumn=dataColumn, hRatio=hRatio)
 }
 
-makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", orientation="l", fast=TRUE, mask="/0", dests=FALSE, dataColumn="packet", banner=NULL, subnet=NULL, max=NULL) {
+makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", orientation="l", fast=TRUE, mask="/0", dests=FALSE, dataColumn="packet", hRatio=0.7, banner=NULL, subnet=NULL, max=NULL) {
   
-  # In order to dynamically pass column names to sort on, one must always use the column name parameter in this fashion: !!as.name(parameter)
-  # Think about thickening red links to make plots with sparse interactions more noticeable
+  # Checking parameters for their correct types
+  checkOutliersDataFrame(outliers)
+  checkLinksDataFrame(links)
+  fileType <- checkFileType(fileType)
+  sortType <- checkSortType(sortType)
+  orientation <- checkOrientation(orientation)
+  checkMask(mask)
+  hRatio <- checkHRatio(hRatio)
+  checkMax(max)
 
   # Creating generalized variables which can be used in the same context to specify different columns in 'dplyr'
   # Also specifying link colors so that we can allow 'FlowCount' to only use a single color
@@ -160,16 +260,13 @@ makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", or
     RcolName <- "FlowCount"
     dataColumn <- as.name(colName)
     RdataColumn <- as.name(RcolName)
-    linkColors <- c("#756bb1","#756bb1") # Two of the same purples
+    linkColors <- c("#756bb1","#756bb1") # Same color twice
   } else {
     stop("dataColumn must be equal to 'packet', 'byte' or 'flow' (to represent PacketCount, ByteCount, or FlowCount)")
   }
-  
-  print(colName)
-  print(RcolName)
 
   # If sorting on threat, that is the only column we can sort on
-  if (sortType == "threat") {
+  if (strcmp(sortType,"threat")) {
     outliers <- outliers %>% arrange(desc(threatLevel))
   } else { # If not sorting on threat, we will sort on IP, but still need to check if being asked to sort on cluster
     ipLongList <- c(nrow(outliers)) # Create vector for storing converted IP addresses
@@ -178,7 +275,7 @@ makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", or
       ipLongList[i] <- ipLong
     }
     outliers$ipLong <- ipLongList
-    if (sortType == "cluster") { # sort on cluster first, then on IP
+    if (strcmp(sortType,"cluster")) { # sort on cluster first, then on IP
       outliers <- outliers %>% arrange(desc(clusterCenter),ipLong)
     } else { # only sort on IP, which is the default behavior
       outliers <- outliers %>% arrange(ipLong)
@@ -222,9 +319,6 @@ makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", or
   
   # Find minimum and maximum data received or sent for a row, for y-axis configuration, set yRange
   dataSummary <- links %>% summarize(dMin = min(!!dataColumn), dMax = max(!!dataColumn), rdMin = min(!!RdataColumn), rdMax = max(!!RdataColumn))
-  print(dataSummary)
-  dataSummary <- links %>% summarize(dMin = min(!!dataColumn), dMax = max(!!dataColumn), rdMin = min(!!RdataColumn), rdMax = max(!!RdataColumn))
-  print(dataSummary)
   # Set highest maximum
   if (dataSummary$dMax[1] > dataSummary$rdMax[1]) {
     dataMax <- dataSummary$dMax[1]
@@ -256,7 +350,7 @@ makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", or
   # an unfair number of complex plots. This will slow the plotting process.
   if (fast) {mcoptions <- list(preschedule=TRUE)}
   else {mcoptions <- list(preschedule=FALSE)}
-  plot.list <- foreach (i = 1:nrow(outliers), .options.multicore=mcoptions, .verbose=TRUE) %dopar% {
+  plot.list <- foreach (i = 1:nrow(outliers), .options.multicore=mcoptions, .verbose=FALSE) %dopar% {
     tempName <- tempfile(pattern = "outlier", tmpdir = tempdir(), fileext = ".png") # generate a temporary filename
     png(tempName, width = 700, height = 700)
     
@@ -315,14 +409,14 @@ makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", or
               circos.points(x = connections$TEND[j], y = connections[[RdataColumn]][j], sector.index=currentFactor, col="#7B3294", pch=19)
               if (connections[[RdataColumn]][j] >= max) {suppressMessages(circos.points(x = connections$TEND[j], y = dataMax + uy(2, "mm"), sector.index=currentFactor, col="red", pch=19))}
             }
-            circos.link(currentFactor, connections$TEND[j], 1, connections$TEND[j], col="red")
+            circos.link(currentFactor, connections$TEND[j], 1, connections$TEND[j], lwd=2, col="red", h.ratio=hRatio)
           } else {
             circos.points(x = connections$TEND[j], y = connections[[dataColumn]][j], sector.index=1, col="#7B3294", pch=19)
             if (connections[[RdataColumn]][j] != 0) {
               circos.points(x = connections$TEND[j], y = connections[[RdataColumn]][j], sector.index=currentFactor, col="#7B3294", pch=19)
-              circos.link(currentFactor, connections$TEND[j], 1, connections$TEND[j], col=linkColors[1])
+              circos.link(currentFactor, connections$TEND[j], 1, connections$TEND[j], col=linkColors[1], h.ratio=hRatio)
             } else {
-              circos.link(currentFactor, connections$TEND[j], 1, connections$TEND[j], col=linkColors[2])
+              circos.link(currentFactor, connections$TEND[j], 1, connections$TEND[j], col=linkColors[2], h.ratio=hRatio)
             }
           }
         }
@@ -336,11 +430,11 @@ makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", or
         for (j in 1:nrow(groupedConnections)) {
           currentSector <- (connectionMapping %>% filter(DIP==groupedConnections$DIP[j]))$sector[1]
           if (groupedConnections$meanRDataCount[j] > 0) {
-            circos.link(currentSector, chordRange, 1, chordRange, col=linkColors[1])
+            circos.link(currentSector, chordRange, 1, chordRange, col=linkColors[1], h.ratio=hRatio)
             meanPackets <- groupedConnections$meanRDataCount[j]
             circos.lines(x=xRange, y=c(meanPackets,meanPackets), sector.index=currentSector, col="#7B3294", lwd=5)
           } else {
-            circos.link(currentSector, chordRange, 1, chordRange, col=linkColors[2])
+            circos.link(currentSector, chordRange, 1, chordRange, col=linkColors[2], h.ratio=hRatio)
           }
           meanPackets <- groupedConnections$meanDataCount[j]
           circos.lines(x=xRange, y=c(meanPackets,meanPackets), sector.index=1, col="#7B3294", lwd = 2)
@@ -379,16 +473,16 @@ makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", or
               next
             } else {
               if (chordColor) {
-                circos.link(2, c(chordBegin, j), 1, xRange[2]/2, col=linkColors[1])
+                circos.link(2, c(chordBegin, j), 1, xRange[2]/2, col=linkColors[1], h.ratio=hRatio)
               } else {
-                circos.link(2, c(chordBegin, j), 1, xRange[2]/2, col=linkColors[2])
+                circos.link(2, c(chordBegin, j), 1, xRange[2]/2, col=linkColors[2], h.ratio=hRatio)
               }
             }
           } else {
             if (chordColor) { # Draw teal chord
-              circos.link(2, c(chordBegin, j-1), 1, xRange[2]/2, col=linkColors[1])
+              circos.link(2, c(chordBegin, j-1), 1, xRange[2]/2, col=linkColors[1], h.ratio=hRatio)
             } else { # Draw amber chord
-              circos.link(2, c(chordBegin, j-1), 1, xRange[2]/2, col=linkColors[2])
+              circos.link(2, c(chordBegin, j-1), 1, xRange[2]/2, col=linkColors[2], h.ratio=hRatio)
             }
             chordBegin <- j
             chordColor <- jColor
@@ -414,14 +508,14 @@ makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", or
               circos.points(x = dipConnections$TEND[k], y = dipConnections[[RdataColumn]][k], sector.index=currentSector, col="#7B3294", pch=19)
               if (dipConnections[[RdataColumn]][k] >= max) {suppressMessages(circos.points(x = dipConnections$TEND[k], y = dataMax + uy(2, "mm"), sector.index=currentSector, col="red", pch=19))}
             }
-            circos.link(currentSector, dipConnections$TEND[k], 1, dipConnections$TEND[k], col="red")
+            circos.link(currentSector, dipConnections$TEND[k], 1, dipConnections$TEND[k], lwd=2, col="red", h.ratio=hRatio)
           } else {
             circos.points(x = dipConnections$TEND[k], y = dipConnections[[dataColumn]][k], sector.index=1, col="#7B3294", pch=19)
             if (dipConnections[[RdataColumn]][k] != 0) {
               circos.points(x = dipConnections$TEND[k], y = dipConnections[[RdataColumn]][k], sector.index=currentSector, col="#7B3294", pch=19)
-              circos.link(currentSector, dipConnections$TEND[k], 1, dipConnections$TEND[k], col=linkColors[1])
+              circos.link(currentSector, dipConnections$TEND[k], 1, dipConnections$TEND[k], col=linkColors[1], h.ratio=hRatio)
             } else {
-              circos.link(currentSector, dipConnections$TEND[k], 1, dipConnections$TEND[k], col=linkColors[2])
+              circos.link(currentSector, dipConnections$TEND[k], 1, dipConnections$TEND[k], col=linkColors[2], h.ratio=hRatio)
             }
           }
         }
@@ -473,11 +567,11 @@ makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", or
     source <- maskIP(source,mask)
     
     # Setting the title for each individual plot
-    if (sortType == "cluster") {
+    if (strcmp(sortType,"cluster")) {
       cluster <- outliers$clusterCenter[i]
       modTitle <- paste0(source, " -- ", cluster)
       title(main=modTitle, line=-0.3)
-    } else if (sortType == "threat") {
+    } else if (strcmp(sortType,"threat")) {
       threat <- outliers$threatLevel[i]
       modTitle <- paste0(source, " -- ", signif(threat, digits = 2))
       title(main=modTitle, line=-0.3)
@@ -495,7 +589,7 @@ makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", or
   #gtable_show_layout(arrangedGrob)
   
   # Drawing vertical lines between plots to demarcate clusters
-  if (sortType == "cluster") { # We want to draw boxes around the groupings of clusters in plot grid
+  if (strcmp(sortType,"cluster")) { # We want to draw boxes around the groupings of clusters in plot grid
     clusters <- outliers %>% group_by(clusterCenter) %>% tally() %>% arrange(desc(clusterCenter))
     iterations <- nrow(clusters)-1 # Only need to draw n-1 separators
     if (iterations > 0) {
@@ -511,7 +605,7 @@ makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", or
     }
   }
   # Use ggsave to save all png's to single file, called fileCombined (specified on line 108)
-  if (orientation == "l") {
+  if (strcmp(orientation,"l")) {
     ggsave(path=filePath,filename=fileCombined, width=11, height=8.5, arrangedGrob)
   } else { # Drawing in portrait mode
     ggsave(path=filePath,filename=fileCombined, width=8.5, height=11, arrangedGrob)

@@ -142,21 +142,25 @@ makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", or
   # Think about thickening red links to make plots with sparse interactions more noticeable
 
   # Creating generalized variables which can be used in the same context to specify different columns in 'dplyr'
+  # Also specifying link colors so that we can allow 'FlowCount' to only use a single color
   if (strcmpi(dataColumn, "packet")) {
     colName <- "PacketCount"
     RcolName <- "RPacketCount"
     dataColumn <- as.name(colName)
     RdataColumn <- as.name(RcolName)
+    linkColors <- c("#5ab4ac","#D8B365") # Teal and Amber
   } else if (strcmpi(dataColumn, "byte")) {
     colName <- "ByteCount"
     RcolName <- "RByteCount"
     dataColumn <- as.name(colName)
     RdataColumn <- as.name(RcolName)
+    linkColors <- c("#5ab4ac","#D8B365") # The first color means a reply, the second means no reply
   } else if (strcmpi(dataColumn, "flow")) {
     colName <- "FlowCount"
     RcolName <- "FlowCount"
     dataColumn <- as.name(colName)
     RdataColumn <- as.name(RcolName)
+    linkColors <- c("#756bb1","#756bb1") # Two of the same purples
   } else {
     stop("dataColumn must be equal to 'packet', 'byte' or 'flow' (to represent PacketCount, ByteCount, or FlowCount)")
   }
@@ -205,8 +209,6 @@ makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", or
     )
   }
   
-  # Just a change to differentiate!!! Another change to differentiate
-
   #Creating image file title to which plots will be saved
   fileCombined <- paste0(file,".",fileType)
   
@@ -318,9 +320,9 @@ makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", or
             circos.points(x = connections$TEND[j], y = connections[[dataColumn]][j], sector.index=1, col="#7B3294", pch=19)
             if (connections[[RdataColumn]][j] != 0) {
               circos.points(x = connections$TEND[j], y = connections[[RdataColumn]][j], sector.index=currentFactor, col="#7B3294", pch=19)
-              circos.link(currentFactor, connections$TEND[j], 1, connections$TEND[j], col="#5AB4AC")
+              circos.link(currentFactor, connections$TEND[j], 1, connections$TEND[j], col=linkColors[1])
             } else {
-              circos.link(currentFactor, connections$TEND[j], 1, connections$TEND[j], col="#D8B365")
+              circos.link(currentFactor, connections$TEND[j], 1, connections$TEND[j], col=linkColors[2])
             }
           }
         }
@@ -334,11 +336,11 @@ makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", or
         for (j in 1:nrow(groupedConnections)) {
           currentSector <- (connectionMapping %>% filter(DIP==groupedConnections$DIP[j]))$sector[1]
           if (groupedConnections$meanRDataCount[j] > 0) {
-            circos.link(currentSector, chordRange, 1, chordRange, col="#5AB4AC")
+            circos.link(currentSector, chordRange, 1, chordRange, col=linkColors[1])
             meanPackets <- groupedConnections$meanRDataCount[j]
             circos.lines(x=xRange, y=c(meanPackets,meanPackets), sector.index=currentSector, col="#7B3294", lwd=5)
           } else {
-            circos.link(currentSector, chordRange, 1, chordRange, col="#D8B365")
+            circos.link(currentSector, chordRange, 1, chordRange, col=linkColors[2])
           }
           meanPackets <- groupedConnections$meanDataCount[j]
           circos.lines(x=xRange, y=c(meanPackets,meanPackets), sector.index=1, col="#7B3294", lwd = 2)
@@ -348,7 +350,7 @@ makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", or
           summarize(meanRDataCount=mean(!!RdataColumn), meanDataCount=mean(!!dataColumn), .groups="keep") %>% 
           arrange(meanRDataCount)
         
-        # Plotting increasing means in !!RdataColumn around the circle. Reducing the number of points to draw by four.
+        # Plotting increasing means in RdataColumn around the circle. Reducing the number of points to draw by four.
         # For 2500 sectors, this process takes about 0.8 seconds.
         yPoints <- (groupedConnections %>% filter(meanRDataCount != 0))[['meanRDataCount']]
         xPoints <- c((1+(destSectors-length(yPoints))):destSectors)
@@ -377,16 +379,16 @@ makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", or
               next
             } else {
               if (chordColor) {
-                circos.link(2, c(chordBegin, j), 1, xRange[2]/2, col="#5AB4AC")
+                circos.link(2, c(chordBegin, j), 1, xRange[2]/2, col=linkColors[1])
               } else {
-                circos.link(2, c(chordBegin, j), 1, xRange[2]/2, col="#D8B365")
+                circos.link(2, c(chordBegin, j), 1, xRange[2]/2, col=linkColors[2])
               }
             }
           } else {
             if (chordColor) { # Draw teal chord
-              circos.link(2, c(chordBegin, j-1), 1, xRange[2]/2, col="#5AB4AC")
+              circos.link(2, c(chordBegin, j-1), 1, xRange[2]/2, col=linkColors[1])
             } else { # Draw amber chord
-              circos.link(2, c(chordBegin, j-1), 1, xRange[2]/2, col="#D8B365")
+              circos.link(2, c(chordBegin, j-1), 1, xRange[2]/2, col=linkColors[2])
             }
             chordBegin <- j
             chordColor <- jColor
@@ -417,9 +419,9 @@ makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", or
             circos.points(x = dipConnections$TEND[k], y = dipConnections[[dataColumn]][k], sector.index=1, col="#7B3294", pch=19)
             if (dipConnections[[RdataColumn]][k] != 0) {
               circos.points(x = dipConnections$TEND[k], y = dipConnections[[RdataColumn]][k], sector.index=currentSector, col="#7B3294", pch=19)
-              circos.link(currentSector, dipConnections$TEND[k], 1, dipConnections$TEND[k], col="#5AB4AC")
+              circos.link(currentSector, dipConnections$TEND[k], 1, dipConnections$TEND[k], col=linkColors[1])
             } else {
-              circos.link(currentSector, dipConnections$TEND[k], 1, dipConnections$TEND[k], col="#D8B365")
+              circos.link(currentSector, dipConnections$TEND[k], 1, dipConnections$TEND[k], col=linkColors[2])
             }
           }
         }
@@ -433,12 +435,11 @@ makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", or
         for (j in 1:nrow(connectionMapping)) {
           # Suppressing warning b/c we WANT the text of the destination IP to be printed outside of the plotting region
           suppressMessages(
-            circos.text(x=((xRange[2]-xRange[1])/2)+xRange[1], y=dataMax+ uy(5, "mm"), sector.index=connectionMapping$sector[j], 
+            circos.text(x=((xRange[2]-xRange[1])/2)+xRange[1], y=dataMax+ uy(6, "mm"), sector.index=connectionMapping$sector[j], 
                         labels=maskIP(connectionMapping$DIP[j],mask), cex=1.75, niceFacing=TRUE, facing="bending"))
         }
       }
     }
-    
     circos.clear()
     
     # Drawing boxes around the titles of the plots whose SIP's are from within the cluster's network
@@ -503,7 +504,6 @@ makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", or
         position <- position + clusters$n[i]
         row <- as.integer(position/cols) + 2
         column <- position - ((row-2)*cols) + 1
-        #print(paste("Row:",row,"Column:",column))
         arrangedGrob <- gtable_add_grob(arrangedGrob, 
                                         grobs=segmentsGrob(x0 = 0, y0 = 0, x1 = 0, y1 = 1, gp=gpar(lwd=2)), 
                                         t = row, l = column, b = row, r = column, name=paste0("sep",i))

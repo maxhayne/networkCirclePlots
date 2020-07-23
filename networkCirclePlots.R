@@ -282,11 +282,6 @@ makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", or
     }
   }
   
-  # Formatting rows and columns of circle plots in a grid
-  sourceCount <- (outliers %>% tally())$n[1]
-  rows = ceiling(sqrt(sourceCount))
-  cols = ceiling(sourceCount/rows)
-  
   # Set the working directory to the path of the name provided by the user
   filePath <- dirname(name)
 
@@ -316,6 +311,8 @@ makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", or
   } else {
     xRange <- c(timeSummary$startTime[1], timeSummary$endTime[1])
   }
+  
+  xMiddle <- xRange[1] + ((xRange[2]-xRange[1])/2)
   
   # Find minimum and maximum data received or sent for a row, for y-axis configuration, set yRange
   dataSummary <- links %>% summarize(dMin = min(!!dataColumn), dMax = max(!!dataColumn), rdMin = min(!!RdataColumn), rdMax = max(!!RdataColumn))
@@ -422,26 +419,41 @@ makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", or
         }
       } else if (numSectors <= 250) { # Draw chords for each sector
         groupedConnections <- connections %>% group_by(DIP) %>% 
-          summarize(meanRDataCount=mean(!!RdataColumn), meanDataCount=mean(!!dataColumn), .groups="keep")
+          summarize(meanRDataCount=mean(!!RdataColumn), meanDataCount=mean(!!dataColumn), maxRCount=sum(!!RdataColumn>=max), maxCount=sum(!!dataColumn>=max), .groups="keep") %>%
+          arrange(meanRDataCount)
         # Want chord to not take up the full xRange, but, 90%, looks less cluttered
         chordMax <- xRange[2]*0.95
         chordMin <- xRange[1] + xRange[2]*0.05
         chordRange <- c(chordMin, chordMax)
         for (j in 1:nrow(groupedConnections)) {
           currentSector <- (connectionMapping %>% filter(DIP==groupedConnections$DIP[j]))$sector[1]
-          if (groupedConnections$meanRDataCount[j] > 0) {
-            circos.link(currentSector, chordRange, 1, chordRange, col=linkColors[1], h.ratio=hRatio)
-            meanPackets <- groupedConnections$meanRDataCount[j]
-            circos.lines(x=xRange, y=c(meanPackets,meanPackets), sector.index=currentSector, col="#7B3294", lwd=5)
+          meanDataCount <- groupedConnections$meanDataCount[j]
+          meanRDataCount <- groupedConnections$meanRDataCount[j]
+          maxRCount <- groupedConnections$maxRCount[j]
+          maxCount <- groupedConnections$maxCount[j]
+          if (maxRCount >= 0 || maxCount >= 0) {
+            circos.link(currentSector, chordRange, 1, chordRange, col="red", h.ratio=hRatio)
+            if (meanRDataCount > 0) {
+              circos.lines(x=xRange, y=c(meanRDataCount,meanRDataCount), sector.index=currentSector, col="#7B3294", lwd=5)
+              # Decided not to add point to outside of sector, a red chord is indication enough
+            }
+            if (meanDataCount > 0) {
+              circos.lines(x=xRange, y=c(meanDataCount,meanDataCount), sector.index=1, col="#7B3294", lwd=5)
+              # Decided not to add point to outside of sector, a red chord is indication enough
+            }
           } else {
-            circos.link(currentSector, chordRange, 1, chordRange, col=linkColors[2], h.ratio=hRatio)
+            if (meanRDataCount > 0) {
+              circos.link(currentSector, chordRange, 1, chordRange, col=linkColors[1], h.ratio=hRatio)
+              circos.lines(x=xRange, y=c(meanRDataCount,meanRDataCount), sector.index=currentSector, col="#7B3294", lwd=5)
+            } else {
+              circos.link(currentSector, chordRange, 1, chordRange, col=linkColors[2], h.ratio=hRatio)
+            }
+            circos.lines(x=xRange, y=c(meanDataCount,meanDataCount), sector.index=1, col="#7B3294", lwd = 2)
           }
-          meanPackets <- groupedConnections$meanDataCount[j]
-          circos.lines(x=xRange, y=c(meanPackets,meanPackets), sector.index=1, col="#7B3294", lwd = 2)
         }
       } else { # Draw chords for consecutive and same-colored sectors
         groupedConnections <- connections %>% group_by(DIP) %>% 
-          summarize(meanRDataCount=mean(!!RdataColumn), meanDataCount=mean(!!dataColumn), .groups="keep") %>% 
+          summarize(meanRDataCount=mean(!!RdataColumn), meanDataCount=mean(!!dataColumn), maxRCount=sum(!!RdataColumn>=max), maxCount=sum(!!dataColumn>=max), .groups="keep") %>% 
           arrange(meanRDataCount)
         
         # Plotting increasing means in RdataColumn around the circle. Reducing the number of points to draw by four.
@@ -583,8 +595,22 @@ makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", or
     img <- readPNG(tempName) # read back finalized plot
     plot <- rasterGrob(img, interpolate = TRUE) # this will be what is combined in plot.list
   }
-  
   circos.clear() # Clearing again, warnings are thrown occasionally 
+  
+  # Create the format for the grid
+  sourceCount <- (outliers %>% tally())$n[1]
+  if (sourceCount > 64) {
+    if (strcmp(orientation,"p")) {
+      cols <- 8
+      rows <- ceiling(sourceCount/8)
+    } else {
+      rows <- 8
+      cols <- ceiling(sourceCount/8)
+    }
+  } else {
+    rows <- ceiling(sqrt(sourceCount))
+    cols <- ceiling(sourceCount/rows)
+  }
   arrangedGrob <- arrangeGrob(grobs=plot.list, nrow=rows, ncol=cols, top=textGrob(as.character(banner), gp=gpar(fontsize=8)))
   #gtable_show_layout(arrangedGrob)
   
@@ -604,10 +630,21 @@ makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", or
       }
     }
   }
+  
+  # Want to correct the long side of the image to accomodate a lot of plots
+  # There should be at the most, 8 plots spanning 8.5 inches, so if there are 64 or more plots,
+  # extend the long side
+  
+  if (nrow(outliers) > 64) {
+    longSideFactor <- nrow(outliers)/64
+  } else {
+    longSideFactor <- 1
+  }
+  
   # Use ggsave to save all png's to single file, called fileCombined (specified on line 108)
   if (strcmp(orientation,"l")) {
-    ggsave(path=filePath,filename=fileCombined, width=11, height=8.5, arrangedGrob)
+    ggsave(path=filePath,filename=fileCombined, width=11*longSideFactor, height=8.5, arrangedGrob, limitsize=FALSE)
   } else { # Drawing in portrait mode
-    ggsave(path=filePath,filename=fileCombined, width=8.5, height=11, arrangedGrob)
+    ggsave(path=filePath,filename=fileCombined, width=8.5, height=11*longSideFactor, arrangedGrob, limitsize=FALSE)
   }
 }

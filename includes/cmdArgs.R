@@ -69,8 +69,12 @@ if (strcmpi(opt$'aspect-ratio',"l")) {
   orientation <<- "l"
 } else if (strcmpi(opt$'aspect-ratio',"p")) {
   orientation <<- "p"
+} else if (strcmpi(opt$'aspect-ratio',"le")) {
+  orientation <<- "le"
+} else if (strcmpi(opt$'aspect-ratio',"pe")) {
+  orientation <<- "pe"
 } else {
-  stop("Aspect ratio must be either 'l' (landscape) or 'p' (portrait).")
+  stop("Aspect ratio must be 'l' (landscape), 'p' (portrait), 'le' (landscape extended), or 'pe' (portrait extended).")
 }
 
 # Logic for fast

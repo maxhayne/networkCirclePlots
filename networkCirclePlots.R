@@ -142,8 +142,8 @@ checkFileType <- function(fileType) {
 
 checkOrientation <- function(orientation) {
   lowerOrientation <- tolower(orientation) 
-  if (!strcmp(lowerOrientation, "l") && !strcmp(lowerOrientation, "p")) {
-    msg <- "The orientation must be either 'l' (landscape) or 'p' (portrait)."
+  if (!strcmp(lowerOrientation, "l") && !strcmp(lowerOrientation, "p") && !strcmp(lowerOrientation,"le") && !strcmp(lowerOrientation,"pe")) {
+    msg <- "The orientation must be 'l' (landscape), 'p' (portrait), 'le' (landscape extended), or 'pe' (portrait extended)."
     stop(msg)
   }
   return(lowerOrientation)
@@ -183,6 +183,43 @@ checkMax <- function(max) {
       stop(msg)
     }
   }
+}
+
+bestDimensions <- function(sourceCount) {
+  ratio <- 8.5/11
+  bestDelta <- 1000
+  dim <- c(0,0)
+  for (i in 1:ceiling(sqrt(sourceCount))) {
+    tempFactor <- ceiling(sourceCount/i)
+    tempRatio1 <- tempFactor/i
+    tempRatio2 <- i/tempFactor
+    difference1 <- abs(tempRatio1-ratio)
+    difference2 <- abs(tempRatio2-ratio)
+    # A little verbose, but wanted always the smaller factor in dim[1]
+    if (difference1 < bestDelta) {
+      if (i <= tempFactor) {
+        dim[1] <- i
+        unused <- tempFactor
+      } else {
+        dim[1] <- tempFactor
+        unused <- i
+      }
+      dim[2] <- unused
+      bestDelta <- difference1
+    } 
+    if (difference2 < bestDelta) {
+      if (i <= tempFactor) {
+        dim[1] <- i
+        unused <- tempFactor
+      } else {
+        dim[1] <- tempFactor
+        unused <- i
+      }
+      dim[2] <- unused
+      bestDelta <- difference2
+    }
+  }
+  return(dim)
 }
 
 makeCirclesFromFile <- function(outlierFile, name=NULL, fileType="png", sortType="ip", orientation="l", fast=TRUE, mask="/0", dests=FALSE, dataColumn="packet", hRatio=0.7, banner=NULL, subnet=NULL, max=NULL) {
@@ -597,20 +634,34 @@ makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", or
   }
   circos.clear() # Clearing again, warnings are thrown occasionally 
   
-  # Create the format for the grid
+  # Counting the total number of SIPs
   sourceCount <- (outliers %>% tally())$n[1]
-  if (sourceCount > 64) {
-    if (strcmp(orientation,"p")) {
-      cols <- 8
-      rows <- ceiling(sourceCount/8)
-    } else {
-      rows <- 8
-      cols <- ceiling(sourceCount/8)
-    }
+  # bestDimensions function finds grid dimensions whose ratio is closest to 8.5/11
+  dimensions <- bestDimensions(sourceCount)
+  
+  # Specify rows and columns based on user option
+  if (strcmp(orientation,"p")) {
+    cols <- dimensions[1]
+    rows <- dimensions[2]
+  } else if (strcmp(orientation,"l")) {
+    cols <- dimensions[2]
+    rows <- dimensions[1]
   } else {
-    rows <- ceiling(sqrt(sourceCount))
-    cols <- ceiling(sourceCount/rows)
+    modifiedDimensions <- FALSE
+    if (dimensions[1] > 8) { # If there are more than 8 columns
+      dimensions[1] <- 8
+      dimensions[2] <- ceiling(sourceCount/8)
+      modifiedDimensions <- TRUE
+    }
+    if (strcmp(orientation,"pe")) {
+      cols <- dimensions[1]
+      rows <- dimensions[2]
+    } else {
+      cols <- dimensions[2]
+      rows <- dimensions[1]
+    }
   }
+
   arrangedGrob <- arrangeGrob(grobs=plot.list, nrow=rows, ncol=cols, top=textGrob(as.character(banner), gp=gpar(fontsize=8)))
   #gtable_show_layout(arrangedGrob)
   
@@ -631,20 +682,24 @@ makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", or
     }
   }
   
-  # Want to correct the long side of the image to accomodate a lot of plots
-  # There should be at the most, 8 plots spanning 8.5 inches, so if there are 64 or more plots,
-  # extend the long side
-  
-  if (nrow(outliers) > 64) {
-    longSideFactor <- nrow(outliers)/64
-  } else {
-    longSideFactor <- 1
+  if (strcmp(orientation,"pe") || strcmp(orientation,"le")) {
+    if (modifiedDimensions) {
+      # Since we're allowing only 8 plots on the short side (which is close to the number of inches, 8.5),
+      # we'll extend the long side (11 inches) by the factor that the number of plots is greater than 11.
+      longSideFactor <- dimensions[2]/11
+    } else {
+      longSideFactor <- 1
+    }
   }
   
   # Use ggsave to save all png's to single file, called fileCombined (specified on line 108)
-  if (strcmp(orientation,"l")) {
+  if (strcmp(orientation,"l")) { # drawing in landscape mode
+    ggsave(path=filePath,filename=fileCombined, width=11, height=8.5, arrangedGrob, dpi=400) # Upping dpi from 300 to 400
+  } else if (strcmp(orientation,"p")){ # Drawing in portrait mode
+    ggsave(path=filePath,filename=fileCombined, width=8.5, height=11, arrangedGrob, dpi=400) # Upping dpi from 300 to 400
+  } else if (strcmp(orientation,"le")) { # drawing in landscape extended
     ggsave(path=filePath,filename=fileCombined, width=11*longSideFactor, height=8.5, arrangedGrob, limitsize=FALSE)
-  } else { # Drawing in portrait mode
+  } else if (strcmp(orientation,"pe")) { # drawing in portrait extended
     ggsave(path=filePath,filename=fileCombined, width=8.5, height=11*longSideFactor, arrangedGrob, limitsize=FALSE)
   }
 }

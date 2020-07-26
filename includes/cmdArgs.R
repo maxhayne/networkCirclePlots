@@ -2,7 +2,7 @@
 option_list = list(
   make_option(c("-o", "--outlier-file"), type="character", default=NULL, 
               help="outliers file name (should include full path)", metavar="filename"),
-  make_option(c("-t", "--type"), type="character", default="png", 
+  make_option(c("-t", "--type"), type="character", default="jpg", 
               help="file type of output {png,jpg,pdf} [default= %default]", metavar="file_ext"),
   make_option(c("-s", "--sort"), type="character", default="ip", 
               help="sort type of output {ip,cluster,threat} [default= %default]", metavar="string"),

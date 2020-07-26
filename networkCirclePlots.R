@@ -185,6 +185,7 @@ checkMax <- function(max) {
   }
 }
 
+# Function to find best dimensions for plot grid which will be closest to 8.5 by 11 page size
 bestDimensions <- function(sourceCount) {
   ratio <- 8.5/11
   bestDelta <- 1000
@@ -222,7 +223,7 @@ bestDimensions <- function(sourceCount) {
   return(dim)
 }
 
-makeCirclesFromFile <- function(outlierFile, name=NULL, fileType="png", sortType="ip", orientation="l", fast=TRUE, mask="/0", dests=FALSE, dataColumn="packet", hRatio=0.7, banner=NULL, subnet=NULL, max=NULL) {
+makeCirclesFromFile <- function(outlierFile, name=NULL, fileType="jpg", sortType="ip", orientation="l", fast=TRUE, mask="/0", dests=FALSE, dataColumn="packet", hRatio=0.7, banner=NULL, subnet=NULL, max=NULL) {
 
   outliers <- outlierFileToDataFrame(outlierFile)
   linksFile <- gsub("outliers.tsv", "links.tsv", outlierFile)
@@ -266,7 +267,7 @@ makeCirclesFromFile <- function(outlierFile, name=NULL, fileType="png", sortType
   makeCircles(outliers, links, name, banner=banner, fileType=fileType, sortType=sortType, orientation=orientation, fast=fast, mask=mask, dests=dests, subnet=subnet, max=max, dataColumn=dataColumn, hRatio=hRatio)
 }
 
-makeCircles <- function(outliers, links, name, fileType="png", sortType="ip", orientation="l", fast=TRUE, mask="/0", dests=FALSE, dataColumn="packet", hRatio=0.7, banner=NULL, subnet=NULL, max=NULL) {
+makeCircles <- function(outliers, links, name, fileType="jpg", sortType="ip", orientation="l", fast=TRUE, mask="/0", dests=FALSE, dataColumn="packet", hRatio=0.7, banner=NULL, subnet=NULL, max=NULL) {
   
   # Checking parameters for their correct types
   checkOutliersDataFrame(outliers)

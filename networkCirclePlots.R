@@ -472,7 +472,7 @@ makeCircles <- function(outliers, links, name, fileType="jpg", sortType="ip", or
           meanRDataCount <- groupedConnections$meanRDataCount[j]
           maxRCount <- groupedConnections$maxRCount[j]
           maxCount <- groupedConnections$maxCount[j]
-          if (maxRCount >= 0 || maxCount >= 0) {
+          if (maxRCount > 0 || maxCount > 0) {
             circos.link(currentSector, chordRange, 1, chordRange, col="red", h.ratio=hRatio)
             if (meanRDataCount > 0) {
               circos.lines(x=xRange, y=c(meanRDataCount,meanRDataCount), sector.index=currentSector, col="#7B3294", lwd=5)
@@ -497,49 +497,51 @@ makeCircles <- function(outliers, links, name, fileType="jpg", sortType="ip", or
           summarize(meanRDataCount=mean(!!RdataColumn), meanDataCount=mean(!!dataColumn), maxRCount=sum(!!RdataColumn>=max), maxCount=sum(!!dataColumn>=max), .groups="keep") %>% 
           arrange(meanRDataCount)
         
-        # Plotting increasing means in RdataColumn around the circle. Reducing the number of points to draw by four.
-        # For 2500 sectors, this process takes about 0.8 seconds.
-        yPoints <- (groupedConnections %>% filter(meanRDataCount != 0))[['meanRDataCount']]
-        xPoints <- c((1+(destSectors-length(yPoints))):destSectors)
-        yPointsReduced <- vector(mode="numeric", length = as.integer(length(yPoints)/4))
-        xPointsReduced <- vector(mode="numeric", length = as.integer(length(xPoints)/4))
-        for (j in 1:length(xPointsReduced)) {
-          yPointsReduced[j] <- yPoints[j*4]
-          xPointsReduced[j] <- xPoints[j*4]
-        }
-        circos.lines(x=xPointsReduced, y=yPointsReduced, sector.index=2, col="#7B3294", lwd=6)
+        # Creating three data frames -- one for no response from DIP, another for a reponse from DIP less than max,
+        # and another for response from DIP greater or equal to max
+        maxResponseDIPs <- groupedConnections %>% mutate(maxCombined=maxCount+maxRCount) %>%
+          filter(maxCombined>0) %>% # DIPs that have values which exceed max
+          arrange(maxCombined) %>%
+          mutate(maxCombined=NULL)
+        groupedConnections <- setdiff(groupedConnections,maxResponseDIPs)
+        noResponseDIPs <- groupedConnections %>% filter(meanRDataCount==0) # Amber plotting
+        groupedConnections <- setdiff(groupedConnections,noResponseDIPs)
+        responseDIPs <- groupedConnections %>% arrange(meanRDataCount) # Renaming for clarity and sorting just in case
+
+        noResponseTally <- (noResponseDIPs %>% tally())$n[1]
+        responseTally <- (responseDIPs %>% tally())$n[1]
+        maxTally <- (maxResponseDIPs %>% tally())$n[1]
+        #print(paste(noResponseTally, responseTally, maxTally))
         
-        if (groupedConnections$meanRDataCount[1] > 0) {
-          chordColor <- TRUE
-        } else {
-          chordColor <- FALSE
+        # Draw three chords, one for each data frame. Amber-Teal-Red clockwise. For the Teal and Red sections,
+        # plot y-values in the plotting section
+        currentStartPosition <- 1
+        if (noResponseTally != 0) {
+          circos.link(1, xRange[2]/2, 2, c(currentStartPosition,currentStartPosition+noResponseTally-1), col=linkColors[2]) # Drawing chord
         }
-        chordBegin <- 1
-        for (j in 2:nrow(groupedConnections)) {
-          if (groupedConnections$meanRDataCount[j] > 0) {
-            jColor <- TRUE
-          } else {
-            jColor <- FALSE 
+        currentStartPosition <- currentStartPosition + noResponseTally
+        if (responseTally != 0) {
+          circos.link(1, xRange[2]/2, 2, c(currentStartPosition,currentStartPosition+responseTally-1), col=linkColors[1]) # Drawing chord
+          # Creating two vectors to represent x and y values for points from the teal chord
+          xPointsReduced <- vector(mode="numeric", length = floor(responseTally/4)) 
+          yPointsReduced <- vector(mode="numeric", length = floor(responseTally/4))
+          for (j in 1:length(xPointsReduced)) {
+            xPointsReduced[j] <- (j*4)+currentStartPosition-1
+            yPointsReduced[j] <- responseDIPs$meanRDataCount[j*4]
           }
-          if (chordColor == jColor) {
-            if (j != nrow(groupedConnections)) {
-              next
-            } else {
-              if (chordColor) {
-                circos.link(2, c(chordBegin, j), 1, xRange[2]/2, col=linkColors[1], h.ratio=hRatio)
-              } else {
-                circos.link(2, c(chordBegin, j), 1, xRange[2]/2, col=linkColors[2], h.ratio=hRatio)
-              }
-            }
-          } else {
-            if (chordColor) { # Draw teal chord
-              circos.link(2, c(chordBegin, j-1), 1, xRange[2]/2, col=linkColors[1], h.ratio=hRatio)
-            } else { # Draw amber chord
-              circos.link(2, c(chordBegin, j-1), 1, xRange[2]/2, col=linkColors[2], h.ratio=hRatio)
-            }
-            chordBegin <- j
-            chordColor <- jColor
+          circos.lines(x=xPointsReduced, y=yPointsReduced, sector.index=2, col="#7B3294", lwd=6) # Drawing line
+        }
+        currentStartPosition <- currentStartPosition + responseTally
+        if (maxTally != 0) {
+          circos.link(1, xRange[2]/2, 2, c(currentStartPosition,currentStartPosition+maxTally-1), col="red") # Drawing chord
+          # Creating two vectors to represent x and y values for points from the red chord
+          xPointsReduced <- vector(mode="numeric", length = floor(maxTally/4)) 
+          yPointsReduced <- vector(mode="numeric", length = floor(maxTally/4))
+          for (j in 1:length(xPointsReduced)) {
+            xPointsReduced[j] <- (j*4)+currentStartPosition-1
+            yPointsReduced[j] <- maxResponseDIPs$meanRDataCount[j*4]
           }
+          circos.lines(x=xPointsReduced, y=yPointsReduced, sector.index=2, col="#7B3294", lwd=6) # Drawing line
         }
       }
     } else { # Draw everything normally, without speedup

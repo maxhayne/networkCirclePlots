@@ -187,6 +187,9 @@ checkMax <- function(max) {
 
 # Function to find best dimensions for plot grid which will be closest to 8.5 by 11 page size
 bestDimensions <- function(sourceCount) {
+  if (sourceCount == 1) {
+    return(c(1,1))
+  }
   ratio <- 8.5/11
   bestDelta <- 1000
   dim <- c(0,0)

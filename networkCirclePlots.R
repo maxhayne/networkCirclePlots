@@ -77,7 +77,7 @@ outlierFileToDataFrame <- function(file) {
     stop(paste0("The file ", file, " does not exist."))
   }
   outliers.columns.all <- c("TEND","PROTOCOL","DPORT","SIP","PASS","clusterCenter","threatLevel")
-  outliers.columns.types <- cols(TEND = "i", PROTOCOL = "c", DPORT = "i", SIP = "c", PASS = "i", clusterCenter = "i", threatLevel = "n")
+  outliers.columns.types <- cols(TEND = "i", PROTOCOL = "c", DPORT = "i", SIP = "c", PASS = "i", clusterCenter = "n", threatLevel = "n")
   outliers <- vroom(file, delim = "\t", quote = '', altrep = TRUE, escape_double = FALSE, col_names = outliers.columns.all, col_types = outliers.columns.types, skip = 1) %>% as.data.frame()
   return(outliers)
 }
@@ -121,10 +121,18 @@ checkOutliersDataFrame <- function(outliers) {
   }
   positions <- which(correctColumnNames %in% columnNames)
   columnTypes <- as.vector(sapply(outliers, class))
-  correctColumnTypes <- c("integer", "character", "integer", "character", "integer", "integer", "numeric")
+  # Made correct types a list so each column could have multiple types, if necessary
+  correctColumnTypes <- list(c("integer"), c("character"), c("integer"), c("character"), c("integer"), c("integer","numeric"), c("numeric"))
   for (i in 1:length(correctColumnTypes)) {
-    if (!strcmp(correctColumnTypes[i], columnTypes[positions[i]])) {
-      msg <- paste0("In the 'outliers' data frame: column '", columnNames[positions[i]], "' must be of type '", correctColumnTypes[i], "'. It is of type '", columnTypes[positions[i]],"'.")
+    match <- FALSE
+    for (j in 1:length(correctColumnTypes[[i]])) {
+      if (strcmp(correctColumnTypes[[i]][j],columnTypes[positions[i]])) {
+        match <- TRUE
+        break
+      }
+    }
+    if (!match) {
+      msg <- paste0("In the 'outliers' data frame: column '", columnNames[positions[i]], "' must be of type(s) '", paste(correctColumnTypes[[i]],collapse=","), "'. It is of type '", columnTypes[positions[i]],"'.")
       stop(msg)
     }
   }
@@ -439,7 +447,7 @@ makeCircles <- function(outliers, links, name, fileType="jpg", sortType="ip", or
       
       if (numSectors <= 99 && taskCount < 700) { # Draw normally
         for (j in 1:nrow(connections)) {
-          currentFactor <- (connectionMapping %>% filter(DIP==connections$DIP[j]))$sector[1]
+          currentFactor <- (connectionMapping %>% filter(DIP==connections$DIP[j]))$sector[1] # Changed DIP to dip
           if (connections[[dataColumn]][j] >= max || connections[[RdataColumn]][j] >= max) {
             circos.points(x = connections$TEND[j], y = connections[[dataColumn]][j], sector.index=1, col="#7B3294", pch=19)
             if (connections[[dataColumn]][j] >= max) {suppressMessages(circos.points(x = connections$TEND[j], y = dataMax + uy(2, "mm"), sector.index=1, col="red", pch=19))}

@@ -207,7 +207,7 @@ bestDimensions <- function(sourceCount) {
     tempRatio2 <- i/tempFactor
     difference1 <- abs(tempRatio1-ratio)
     difference2 <- abs(tempRatio2-ratio)
-    # A little verbose, but wanted always the smaller factor in dim[1]
+    # A little verbose, but wanted always the smaller factor in dim[1], the larger in dim[2]
     if (difference1 < bestDelta) {
       if (i <= tempFactor) {
         dim[1] <- i
@@ -404,8 +404,8 @@ makeCircles <- function(outliers, links, name, fileType="jpg", sortType="ip", or
     connections <- links %>% filter(SIP == outliers$SIP[i]) %>% arrange(DIP)
     connectionMapping <- connections %>% group_by(DIP) %>% 
       summarize(meanRDataCount=mean(!!RdataColumn), meanDataCount=mean(!!dataColumn), .groups="keep") %>% 
-      arrange(meanRDataCount) %>% 
-      mutate(sector = row_number()+1)
+      arrange(meanRDataCount)
+    connectionMapping$sector <- c(2:(nrow(connectionMapping)+1)) # Adding a column which is current row#+1
     destinationCount <- (connections %>% distinct(DIP) %>% tally())$n[1]
     taskCount <- (connections %>% tally())$n[1]
     source <- as.character(outliers$SIP[i]) # Grabbing the source IP
@@ -447,7 +447,7 @@ makeCircles <- function(outliers, links, name, fileType="jpg", sortType="ip", or
       
       if (numSectors <= 99 && taskCount < 700) { # Draw normally
         for (j in 1:nrow(connections)) {
-          currentFactor <- (connectionMapping %>% filter(DIP==connections$DIP[j]))$sector[1] # Changed DIP to dip
+          currentFactor <- (connectionMapping %>% filter(DIP==connections$DIP[j]))$sector[1]
           if (connections[[dataColumn]][j] >= max || connections[[RdataColumn]][j] >= max) {
             circos.points(x = connections$TEND[j], y = connections[[dataColumn]][j], sector.index=1, col="#7B3294", pch=19)
             if (connections[[dataColumn]][j] >= max) {suppressMessages(circos.points(x = connections$TEND[j], y = dataMax + uy(2, "mm"), sector.index=1, col="red", pch=19))}
@@ -650,10 +650,9 @@ makeCircles <- function(outliers, links, name, fileType="jpg", sortType="ip", or
   
   # Counting the total number of SIPs
   sourceCount <- (outliers %>% tally())$n[1]
+  # Specify rows and columns based on user option
   # bestDimensions function finds grid dimensions whose ratio is closest to 8.5/11
   dimensions <- bestDimensions(sourceCount)
-  
-  # Specify rows and columns based on user option
   if (strcmp(orientation,"p")) {
     cols <- dimensions[1]
     rows <- dimensions[2]

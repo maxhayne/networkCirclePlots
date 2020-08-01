@@ -1,8 +1,18 @@
-# Import libraries
-if (!suppressMessages(require("pacman"))) install.packages("pacman")
+#Import libraries
+if (!suppressMessages(require("pacman"))) stop("Error: package 'pacman' must be installed.")
 pacman::p_load("pracma","doParallel","circlize","dplyr","bitops", "tictoc",
                "tools","anytime","grid","png","ggplot2","gridExtra","stringr",
-               "vroom","gtable","optparse")
+               "vroom","gtable","optparse", install=FALSE)
+
+# Check if they loaded
+isLoaded <- pacman::p_isloaded("pracma","doParallel","circlize","dplyr","bitops", "tictoc",
+                   "tools","anytime","grid","png","ggplot2","gridExtra","stringr",
+                   "vroom","gtable","optparse")
+
+# Stop if loading was incomplete
+if (FALSE %in% isLoaded) {
+  stop("A necessary package isn't installed. See warning message above from 'pacman'. If no warning message is present, check the top of this script for the package list.")
+}
 
 registerDoParallel(cores=detectCores()-2) # Register number of cores w/ doParallel
 

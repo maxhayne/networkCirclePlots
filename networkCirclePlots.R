@@ -1,19 +1,12 @@
-# Importing libraries
-if (!suppressMessages(require("funr"))) install.packages("funr")
-currentDirectory <- dirname(sys.script())
-source(paste0(currentDirectory,"/includes/libs.R"))
+# Import libraries
+if (!suppressMessages(require("pacman"))) install.packages("pacman")
+pacman::p_load("pracma","doParallel","circlize","dplyr","bitops", "tictoc",
+               "tools","anytime","grid","png","ggplot2","gridExtra","stringr",
+               "vroom","gtable","optparse")
 
-# Check whether user has provided core count or not
-if (exists("ncpCoreCount")) {
-  if (!is.null(ncpCoreCount)) {
-    registerDoParallel(cores=ncpCoreCount)
-  } else {
-    registerDoParallel(cores=detectCores()-2)
-  }
-} else {
-  registerDoParallel(cores=detectCores()-2)
-}
+registerDoParallel(cores=detectCores()-2) # Register number of cores w/ doParallel
 
+# Change core count based on user's preference
 changeCoreCount <- function(newCoreCount) {
   if (!is.numeric(newCoreCount)) {
     print("Error: must provide an integer value for the new core count. Nothing has changed.")
@@ -38,6 +31,7 @@ changeCoreCount <- function(newCoreCount) {
   }
 }
 
+# Mask IPs to user's preference
 maskIP <- function(ip, mask) {
   if (mask == "/0") {
     masked <- "X.X.X.X"
@@ -62,7 +56,6 @@ maskIP <- function(ip, mask) {
 
 # Function which takes an IPv4 address, converts it to a long which is sortable in the way that we want
 # Originally taken from https://stackoverflow.com/questions/26512404/converting-ip-addresses-in-r
-# Author: 'hrbrmstr'
 ip2long <- function(ip) {
   # convert string into vector of characters
   parts <- unlist(strsplit(ip, '.', fixed=TRUE))
@@ -72,6 +65,7 @@ ip2long <- function(ip) {
   Reduce(octets, as.integer(parts))
 }
 
+# Convert outliers file to data.frame
 outlierFileToDataFrame <- function(file) {
   if (!file.exists(file)) {
     stop(paste0("The file ", file, " does not exist."))
@@ -82,6 +76,7 @@ outlierFileToDataFrame <- function(file) {
   return(outliers)
 }
 
+# Convert links file to data.frame
 linksFileToDataFrame <- function(file) {
   if (!file.exists(file)) {
     stop(paste0("The file ", file, " does not exist."))
@@ -92,6 +87,7 @@ linksFileToDataFrame <- function(file) {
   return(links)
 }
 
+# Check validity of links data.frame
 checkLinksDataFrame <- function(links) {
   columnNames <- colnames(links)
   correctColumnNames <- c("TEND","SIP","DIP","FlowCount","ByteCount","PacketCount","RByteCount","RPacketCount")
@@ -111,6 +107,7 @@ checkLinksDataFrame <- function(links) {
   }
 }
 
+# Check validity of outliers data.frame
 checkOutliersDataFrame <- function(outliers) {
   columnNames <- colnames(outliers)
   correctColumnNames <- c("TEND","PROTOCOL","DPORT","SIP","PASS","clusterCenter","threatLevel")
@@ -138,6 +135,7 @@ checkOutliersDataFrame <- function(outliers) {
   }
 }
 
+# Check validity of fileType
 checkFileType <- function(fileType) {
   types <- c("jpg", "jpeg", "png", "pdf")
   lowerFileType <- tolower(fileType)
@@ -148,6 +146,7 @@ checkFileType <- function(fileType) {
   return(lowerFileType)
 }
 
+# Check validity of orientation (aspect-ratio)
 checkOrientation <- function(orientation) {
   lowerOrientation <- tolower(orientation) 
   if (!strcmp(lowerOrientation, "l") && !strcmp(lowerOrientation, "p") && !strcmp(lowerOrientation,"le") && !strcmp(lowerOrientation,"pe")) {
@@ -157,6 +156,7 @@ checkOrientation <- function(orientation) {
   return(lowerOrientation)
 }
 
+# Check validity of sortType
 checkSortType <- function(sortType) {
   types <- c("cluster", "threat", "ip")
   lowerSortType <- tolower(sortType)
@@ -167,6 +167,7 @@ checkSortType <- function(sortType) {
   return(lowerSortType)
 }
 
+# Check validity of mask
 checkMask <- function(mask) {
   types <- c("/0","/8","/16","/24","/32")
   if (!(mask %in% types)) {
@@ -175,6 +176,7 @@ checkMask <- function(mask) {
   }
 }
 
+# Check validity of hRatio
 checkHRatio <- function(hRatio) {
   if (is.numeric(hRatio) && hRatio >= 0 && hRatio <= 1) {
     return(hRatio)
@@ -184,6 +186,7 @@ checkHRatio <- function(hRatio) {
   }
 }
 
+# Check validity of max value
 checkMax <- function(max) {
   if (!is.null(max)) {
     if (!is.numeric(max)) {
@@ -235,7 +238,6 @@ bestDimensions <- function(sourceCount) {
 }
 
 makeCirclesFromFile <- function(outlierFile, name=NULL, fileType="jpg", sortType="ip", orientation="l", fast=TRUE, mask="/0", dests=FALSE, dataColumn="packet", hRatio=0.7, banner=NULL, subnet=NULL, max=NULL) {
-
   outliers <- outlierFileToDataFrame(outlierFile)
   linksFile <- gsub("outliers.tsv", "links.tsv", outlierFile)
   links <- linksFileToDataFrame(linksFile)
@@ -273,13 +275,11 @@ makeCirclesFromFile <- function(outlierFile, name=NULL, fileType="jpg", sortType
       subnet <- NULL
     }
   }
-  
   # Call the main function with the provided parameters
   makeCircles(outliers, links, name, banner=banner, fileType=fileType, sortType=sortType, orientation=orientation, fast=fast, mask=mask, dests=dests, subnet=subnet, max=max, dataColumn=dataColumn, hRatio=hRatio)
 }
 
 makeCircles <- function(outliers, links, name, fileType="jpg", sortType="ip", orientation="l", fast=TRUE, mask="/0", dests=FALSE, dataColumn="packet", hRatio=0.7, banner=NULL, subnet=NULL, max=NULL) {
-  
   # Checking parameters for their correct types
   checkOutliersDataFrame(outliers)
   checkLinksDataFrame(links)
@@ -715,4 +715,211 @@ makeCircles <- function(outliers, links, name, fileType="jpg", sortType="ip", or
   } else if (strcmp(orientation,"pe")) { # drawing in portrait extended
     ggsave(path=filePath,filename=fileCombined, width=8.5, height=11*longSideFactor, arrangedGrob, limitsize=FALSE)
   }
+}
+
+# If this was called as an Rscript from the command line, parse arguments:
+if (sys.nframe() == 0L) {
+  # Variable declarations
+  outlierFile <- NULL
+  fileType <- NULL
+  sortType <- NULL
+  fast <- NULL
+  mask <- NULL
+  dests <- NULL
+  orientation <- NULL
+  banner <- NULL
+  subnet <- NULL
+  ncpCoreCount <- NULL
+  maxData <- NULL
+  dataColumn <- NULL
+  hRatio <- NULL
+  
+  # Arguments list. Using package "optparse"
+  option_list = list(
+    make_option(c("-o", "--outlier-file"), type="character", default=NULL, 
+                help="outliers file name (should include full path)", metavar="filename"),
+    make_option(c("-t", "--type"), type="character", default="jpg", 
+                help="file type of output {png,jpg,pdf} [default= %default]", metavar="file_ext"),
+    make_option(c("-s", "--sort"), type="character", default="ip", 
+                help="sort type of output {ip,cluster,threat} [default= %default]", metavar="string"),
+    make_option(c("-a", "--aspect-ratio"), type="character", default="l", 
+                help="aspect ratio of output page {l=landscape,p=portrait} [default= %default]", metavar="character"),
+    make_option(c("-f", "--fast"), type="logical", action="store_true", default=FALSE,
+                help="enable plotting speedups [default= %default]", metavar="logical"),
+    make_option(c("-m", "--mask"), type="character", default="/0", 
+                help="masking to be done to IPs {/0,/8,/16,/24,/32} [default= %default]", metavar="string"),
+    make_option(c("-n", "--name"), type="character", default=NULL, 
+                help="name of the output file (includes path) and the title above the plots in the image (if no title is provided), file name defaults to the outlier's filename [default= %default]", metavar="string"),
+    make_option(c("-d", "--dests"), type="logical", action="store_true", default=FALSE, 
+                help="destination sectors of circleplots will be labeled if <10 destinations [default= %default]", metavar="logical"),
+    make_option(c("-c", "--cores"), type="integer", default=NULL,
+                help="number of cores to use while drawing plots. default behavior uses detectCores()-2", metavar="integer"),
+    make_option(c("-b", "--banner"), type="character", default=NULL,
+                help="the banner (title) of the page of plots. defaults to the name of the file", metavar="string"),
+    make_option(c("-S", "--subnet"), type="character", default=NULL,
+                help="the subnet of the network being monitored. defaults to null, but if null, checks for subnet in outlierFile name between '<time>_subnet_outliers.tsv'", metavar="string"),
+    make_option(c("-M", "--max-data"), type="integer", default=NULL,
+                help="maximum packet count for a link or sector, above which a red dot or line will be drawn outside the sector [default= %default]", metavar="integer"),
+    make_option(c("-D", "--data-column"), type="character", default="packet",
+                help="the data column in the 'links' file to use as the y-value in every sectors' plot {flow=FlowCount,byte=ByteCount,packet=PacketCount} [default= %default]", metavar="string"),
+    make_option(c("-H", "--h-ratio"), type="double", default="0.7",
+                help="a double between 0 and 1. closer to 0, the apex of a curved link drawn between two points passes nearer to the center of the circle plot [default= %default]", metavar="double")
+  )
+  opt_parser = OptionParser(option_list=option_list)
+  opt = parse_args(opt_parser)
+  
+  # Logic for outlier file
+  if (is.null(opt$'outlier-file')) {
+    stop("An outlier file must be provided in the command line arguments. Use -h for help.")
+  } else {
+    if(!file.exists(opt$'outlier-file')) {
+      stop("The outlier file provided does not exist.")
+    }
+    outlierFile <- opt$'outlier-file'
+  }
+  
+  # Logic for file type
+  if (strcmpi("png",opt$type)) {
+    fileType <- "png"
+  } else if (strcmpi("jpg",opt$type) || strcmpi("jpeg",opt$type)) {
+    fileType <- "jpeg"
+  } else if (strcmpi("pdf",opt$type)) {
+    fileType <- "pdf"
+  } else {
+    stop("The file type must be one of the three: 'png', 'pdf', 'jpg', or 'jpeg'.")
+  }
+  
+  # Logic for sorting type
+  if (strcmpi(opt$sort,"ip")) {
+    sortType <- "ip"
+  } else if (strcmpi(opt$sort,"cluster")) {
+    sortType <- "cluster"
+  } else if (strcmpi(opt$sort,"threat")) {
+    sortType <- "threat"
+  } else {
+    stop("The sort option must be one of the three: 'ip', 'cluster', or 'threat'.")
+  }
+  
+  # Logic for aspect ratio
+  if (strcmpi(opt$'aspect-ratio',"l")) {
+    orientation <- "l"
+  } else if (strcmpi(opt$'aspect-ratio',"p")) {
+    orientation <- "p"
+  } else if (strcmpi(opt$'aspect-ratio',"le")) {
+    orientation <- "le"
+  } else if (strcmpi(opt$'aspect-ratio',"pe")) {
+    orientation <- "pe"
+  } else {
+    stop("Aspect ratio must be 'l' (landscape), 'p' (portrait), 'le' (landscape extended), or 'pe' (portrait extended).")
+  }
+  
+  # Logic for fast
+  if (opt$fast) {
+    fast <- TRUE
+  } else {
+    fast <- FALSE
+  }
+  
+  # Logic for mask
+  if (strcmpi(opt$mask,"/0")) {
+    mask <- "/0"
+  } else if (strcmpi(opt$mask,"/8")) {
+    mask <- "/8"
+  } else if (strcmpi(opt$mask,"/16")) {
+    mask <- "/16"
+  } else if (strcmpi(opt$mask,"/24")) {
+    mask <- "/24"
+  } else if (strcmpi(opt$mask,"/32")) {
+    mask <- "/32"
+  } else {
+    stop("Masking must be set to one of the four: '/0', '/8', '/16', '/24', or '/32'.")
+  }
+  
+  # Logic for name
+  if (is.null(opt$name)) {
+    name <- NULL
+  } else {
+    name <- opt$n
+  }
+  
+  # Logic for dests
+  if (opt$dests) {
+    dests <- TRUE
+  } else {
+    dests <- FALSE
+  }
+  
+  # Logic for cores
+  if (is.null(opt$cores)) {
+    ncpCoreCount <- detectCores()-2
+  } else if (is.integer(opt$cores)){
+    if (opt$cores > detectCores()) {
+      ncpCoreCount <- detectCores()
+    } else if (opt$cores < 1){
+      ncpCoreCount <- 1
+    } else {
+      ncpCoreCount <- opt$cores
+    }
+  } else {
+    stop("The number of cores must be an integer.")
+  }
+  
+  # Logic for max data
+  if (is.null(opt$'max-data')) {
+    maxData <- NULL
+  } else if (is.integer(opt$'max-data')){
+    maxData <- opt$'max-data'
+  } else {
+    stop("The maximum must be an integer value.")
+  }
+  
+  # Logic for banner
+  if (is.null(opt$banner)) {
+    banner <- NULL
+  } else {
+    banner <- opt$banner
+  }
+  
+  # Logic for subnet
+  if (is.null(opt$subnet)) {
+    subnet <- NULL
+  } else {
+    subnet <- opt$subnet
+  }
+  
+  # Logic for data column
+  if (strcmpi(opt$'data-column', "packet")) {
+    dataColumn <- "packet"
+  } else if (strcmpi(opt$'data-column', "byte")){
+    dataColumn <- "byte"
+  } else if (strcmpi(opt$'data-column', "flow")) {
+    dataColumn <- "flow"
+  } else {
+    stop("The data column must be set to one of the three:'packet', 'byte', or 'flow'.")
+  }
+  
+  # Logic for h-ratio
+  if (is.null(opt$'h-ratio')) {
+    hRatio <- 0.7
+  } else {
+    if (opt$'h-ratio' > 1) {
+      hRatio <- 0.9
+    } else if (opt$'h-ratio' < 0) {
+      hRatio <- 0.1
+    } else {
+      hRatio <- opt$'h-ratio'
+    }
+  }
+  
+  # Print command line argument values
+  argNames <- c("outlier-file","type","sort","fast","mask","dests","aspect-ratio","banner","subnet","cores","max-data","data-column","h-ratio")
+  collectedArgs <- list(outlierFile, fileType, sortType, fast, mask, dests, orientation, banner, subnet, ncpCoreCount, maxData, dataColumn, hRatio)
+  for (i in 1:length(argNames)) {
+    cat(paste0(argNames[i],": '",collectedArgs[i],"'\n"))
+  }
+  
+  changeCoreCount(ncpCoreCount) # Changing core count based on user's request
+  tic()
+  makeCirclesFromFile(outlierFile, name=name, fileType=fileType, sortType=sortType, fast=fast, mask=mask, dests=dests, orientation=orientation, banner=banner, subnet=subnet, max=maxData, dataColumn=dataColumn, hRatio=hRatio)
+  toc()
 }

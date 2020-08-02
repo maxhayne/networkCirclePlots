@@ -1,4 +1,4 @@
-#Import libraries
+# Import libraries
 if (!suppressMessages(require("pacman"))) stop("Error: package 'pacman' must be installed.")
 pacman::p_load("pracma","doParallel","circlize","dplyr","bitops", "tictoc",
                "tools","anytime","grid","png","ggplot2","gridExtra","stringr",
@@ -247,6 +247,7 @@ bestDimensions <- function(sourceCount) {
   return(dim)
 }
 
+# Function which takes outlier filename instead of data.frames, then calls makeCircles()
 makeCirclesFromFile <- function(outlierFile, name=NULL, fileType="jpg", sortType="ip", orientation="l", fast=TRUE, mask="/0", dests=FALSE, dataColumn="packet", hRatio=0.7, banner=NULL, subnet=NULL, max=NULL) {
   outliers <- outlierFileToDataFrame(outlierFile)
   linksFile <- gsub("outliers.tsv", "links.tsv", outlierFile)
@@ -289,6 +290,7 @@ makeCirclesFromFile <- function(outlierFile, name=NULL, fileType="jpg", sortType
   makeCircles(outliers, links, name, banner=banner, fileType=fileType, sortType=sortType, orientation=orientation, fast=fast, mask=mask, dests=dests, subnet=subnet, max=max, dataColumn=dataColumn, hRatio=hRatio)
 }
 
+# Main function for drawing circle plots from data frames
 makeCircles <- function(outliers, links, name, fileType="jpg", sortType="ip", orientation="l", fast=TRUE, mask="/0", dests=FALSE, dataColumn="packet", hRatio=0.7, banner=NULL, subnet=NULL, max=NULL) {
   # Checking parameters for their correct types
   checkOutliersDataFrame(outliers)
@@ -360,7 +362,7 @@ makeCircles <- function(outliers, links, name, fileType="jpg", sortType="ip", or
     )
   }
   
-  #Creating image file title to which plots will be saved
+  # Creating image file title to which plots will be saved
   fileCombined <- paste0(file,".",fileType)
   
   # Find min and max timstamps in links file, will standardize the range of the x-axis for all plots
@@ -421,11 +423,6 @@ makeCircles <- function(outliers, links, name, fileType="jpg", sortType="ip", or
     source <- as.character(outliers$SIP[i]) # Grabbing the source IP
     #print(paste("Tasks for IP", source, ":",taskCount))
     numSectors <- as.integer(destinationCount + 1)
-    
-    # Tried using data.table instead of data.frame to check for speed
-    #dataTableMapping <- as.data.table(connectionMapping)
-    #setkey(dataTableMapping,DIP)
-    #show(paste0(numSectors," started working"))
     
     # Do some formatting for circlize
     par(mar = c(0.5, 0.5, 1, 0.5), cex.main=1.9)
@@ -689,7 +686,7 @@ makeCircles <- function(outliers, links, name, fileType="jpg", sortType="ip", or
   #gtable_show_layout(arrangedGrob)
   
   # Drawing vertical lines between plots to demarcate clusters
-  if (strcmp(sortType,"cluster")) { # We want to draw boxes around the groupings of clusters in plot grid
+  if (strcmp(sortType,"cluster")) {
     clusters <- outliers %>% group_by(clusterCenter) %>% tally() %>% arrange(desc(clusterCenter))
     iterations <- nrow(clusters)-1 # Only need to draw n-1 separators
     if (iterations > 0) {
@@ -727,7 +724,8 @@ makeCircles <- function(outliers, links, name, fileType="jpg", sortType="ip", or
   }
 }
 
-# If this was called as an Rscript from the command line, parse arguments:
+# If this was called as an Rscript from the command line, parse arguments
+# This if-staement is similar to python's if __name__ == "__main__"
 if (sys.nframe() == 0L) {
   # Variable declarations
   outlierFile <- NULL
@@ -928,7 +926,9 @@ if (sys.nframe() == 0L) {
     cat(paste0(argNames[i],": '",collectedArgs[i],"'\n"))
   }
   
+  # Set number of cores to argument
   changeCoreCount(ncpCoreCount) # Changing core count based on user's request
+  # Call makeCirclesFromFile with the arguments, and when completed, print the time it took to run
   tic()
   makeCirclesFromFile(outlierFile, name=name, fileType=fileType, sortType=sortType, fast=fast, mask=mask, dests=dests, orientation=orientation, banner=banner, subnet=subnet, max=maxData, dataColumn=dataColumn, hRatio=hRatio)
   toc()

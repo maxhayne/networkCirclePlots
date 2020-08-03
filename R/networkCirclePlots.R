@@ -19,19 +19,19 @@ registerDoParallel(cores=detectCores()-2) # Register number of cores w/ doParall
 # Change core count based on user's preference
 changeCoreCount <- function(newCoreCount) {
   if (!is.numeric(newCoreCount)) {
-    print("Error: must provide an integer value for the new core count. Nothing has changed.")
+    cat("Error: must provide an integer value for the new core count. Nothing has changed.")
     return()
   } else {
     if (newCoreCount%%1 != 0) {
-      print("Error: new core count must be an integer value.")
+      cat("Error: new core count must be an integer value.")
       return()
     }
     if (newCoreCount > detectCores()) {
-      print("Requested core count is greater than the number of cores the machine has. Set to max.")
+      cat("Requested core count is greater than the number of cores the machine has. Set to max.")
       stopImplicitCluster()
       registerDoParallel(cores=detectCores())
     } else if (newCoreCount < 1) {
-      print("Requested core count is less than 1. Set to min.")
+      cat("Requested core count is less than 1. Set to min.")
       stopImplicitCluster()
       registerDoParallel(cores=1)
     } else {
@@ -58,7 +58,7 @@ maskIP <- function(ip, mask) {
     # Do nothing, show source fully
     masked <- ip
   } else {
-    print("maskIP: Mask doesn't match '/0', '/8', '/16', or '/24', masking all ('/0') by default.")
+    cat("maskIP: Mask doesn't match '/0', '/8', '/16', or '/24', masking all ('/0') by default.")
     masked <- "X.X.X.X"
   }
   return(masked)
@@ -421,7 +421,6 @@ makeCircles <- function(outliers, links, name, fileType="jpg", sortType="ip", or
     destinationCount <- (connections %>% distinct(DIP) %>% tally())$n[1]
     taskCount <- (connections %>% tally())$n[1]
     source <- as.character(outliers$SIP[i]) # Grabbing the source IP
-    #print(paste("Tasks for IP", source, ":",taskCount))
     numSectors <- as.integer(destinationCount + 1)
     
     # Do some formatting for circlize
@@ -526,7 +525,6 @@ makeCircles <- function(outliers, links, name, fileType="jpg", sortType="ip", or
         noResponseTally <- (noResponseDIPs %>% tally())$n[1]
         responseTally <- (responseDIPs %>% tally())$n[1]
         maxTally <- (maxResponseDIPs %>% tally())$n[1]
-        #print(paste(noResponseTally, responseTally, maxTally))
         
         # Draw three chords, one for each data frame. Amber-Teal-Red clockwise. For the Teal and Red sections,
         # plot y-values in the plotting section

@@ -91,49 +91,56 @@ Every column in Figure 5 uses its own set of input data. The input data was gene
 
 In the environment where this code is useful, the data from which these plots are created is stored in files and databases. It was therefore important for the main function to be callable from both the command-line and another R script. 
 
-#### makeCirclesFromFile.R
+#### networkCirclePlots.R
 
-<i>makeCirclesFromFile.R</i> is designed to be called from the command-line, using 'Rscript makeCirclesFromFile.R [Arguments]'. Issuing this command loads necessary libraries with the 'includes/libs.R' script, parses arguments with the 'includes/cmdArgs.R' script, loads the 'networkCirclePlots.R' script, and calls the function <i>makeCirclesFromFile(args)</i> to generate the plots. It takes a maximum of 10 arguments, but only one is required. It should be noted that this script should be used as an alternative way to call the function <i>makeCirclesFromeFile(args)</i>, and so all command-line arguments correspond to arguments that would be used in a call to that function. Arguments are parsed using the package <i>optparse</i>, so incorrect usage should result in an error along with an explanation. Inclusion of the '-h' flag will print a list of all possible arguments, and a description of how to use each:
+<i>networkCirclePlots.R</i> is designed to be called from the command-line, using 'Rscript networkCirclePlots.R [Arguments]'. Issuing this command loads necessary libraries, parses arguments, and calls the function <i>makeCirclesFromFile(args)</i> to generate the plots. It takes a maximum of 14 arguments, but only one is required. It should be noted that this script should be used as an alternative way to call the function <i>makeCirclesFromeFile(args)</i>, and so all command-line arguments correspond to arguments that would be used in a call to that function. Arguments are parsed using the package <i>optparse</i>, so incorrect usage should result in an error along with an explanation. Inclusion of the '-h' flag will print a list of all possible arguments, and a description of how to use each:
 
-	-o FILENAME, --outlier_file=FILENAME
-		REQUIRED: Name of the outlier file (should include full path)
+	-o FILENAME, --outlier-file=FILENAME
+		outliers file name (should include full path)
 
 	-t FILE_EXT, --type=FILE_EXT
-		Optional: File type of output {png,jpg,pdf}. Should not include a '.' before the type. Defaults to 'png'
+		file type of output {png,jpg,pdf} [default= jpg]
 
 	-s STRING, --sort=STRING
-		Optional: Sorting type of plots in the output file {ip,cluster,threat}. Defaults to 'ip'
+		sort type of output {ip,cluster,threat} [default= ip]
 
-	-a CHARACTER, --aspect_ratio=CHARACTER
-		Optional: Aspect ratio of output page {l=landscape,p=portrait}. Defaults to 'l'
+	-a CHARACTER, --aspect-ratio=CHARACTER
+		aspect ratio of output page {l=landscape,p=portrait} [default= l]
 
 	-f, --fast
-		Optional: Enable plotting speedups. Without '-f', plots won't be drawn with speedups
+		enable plotting speedups [default= FALSE]
 
 	-m STRING, --mask=STRING
-		Optional: Masking to be done to IPs {/0,/8,/16,/24,/32}. Defaults to '/0'. '/0' Masks the entire IP, '/32' masks nothing
+		masking to be done to IPs {/0,/8,/16,/24,/32} [default= /0]
 
 	-n STRING, --name=STRING
-		Optional: Name of the output file (includes path). Defaults to the outlier's filename
+		name of the output file (includes path) and the title above the plots in the image (if no title is provided), file name defaults to the outlier's filename [default= NULL]
 
 	-d, --dests
-		Optional: Destination sectors of plots will be labeled with their corresponding IP if <10 destinations. Without '-d', no sectors will be labeled
+		destination sectors of circleplots will be labeled if <10 destinations [default= FALSE]
 
 	-c INTEGER, --cores=INTEGER
-		Optional: Number of cores to use while drawing plots. Default behavior uses detectCores()-2
+		number of cores to use while drawing plots. default behavior uses detectCores()-2
 
 	-b STRING, --banner=STRING
-		Optional: Banner (title) of the page of plots. Defaults to the name of the file, or, if the filename contains the epoch minute, the date of when the data was collected
+		the banner (title) of the page of plots. defaults to the name of the file
 
 	-S STRING, --subnet=STRING
-		Optional: Subnet of the network being monitored. Defaults to null, but if null, checks for subnet in outlier filename between 'time_subnet_outliers.tsv'
+		the subnet of the network being monitored. defaults to null, but if null, checks for subnet in outlierFile name between '<time>_subnet_outliers.tsv'
+
+	-M INTEGER, --max-data=INTEGER
+		maximum packet count for a link or sector, above which a red dot or line will be drawn outside the sector [default= NULL]
+
+	-D STRING, --data-column=STRING
+		the data column in the 'links' file to use as the y-value in every sectors' plot {flow=FlowCount,byte=ByteCount,packet=PacketCount} [default= packet]
+
+	-H DOUBLE, --h-ratio=DOUBLE
+		a double between 0 and 1. closer to 0, the apex of a curved link drawn between two points passes nearer to the center of the circle plot [default= 0.7]
 
 	-h, --help
 		Show this help message and exit
-    
-#### networkCirclePlots.R
 
-This is the main script, which contains the necessary functions for drawing plots. The two functions, <i>makeCirclesFromFile(args)</i> and <i>makeCircles(args)</i> are very similar, but as can be inferred, <i>makeCirclesFromFile(args)</i> takes the name of an outlier file as an argument, while <i>makeCircles(args)</i> takes two data frames: the 'outliers' data frame and the 'links' data frame. And, because <i>makeCircles(args)</i> is not given an existing filename, it also requires the name of the output file from the user (which can include the filetype extension, but the parameter passed into the fileType argument will override). Otherwise, these two functions should behave the same way.
+If it is not called from the command-line, but instead loaded using <i>source("/path/networkCirclePlots.R")</i>, only the functions contained in the script will be loaded, and no attempt to read arguments will be made. The two functions, <i>makeCirclesFromFile(args)</i> and <i>makeCircles(args)</i> are very similar, but as can be inferred, <i>makeCirclesFromFile(args)</i> takes the name of an outlier file as an argument, while <i>makeCircles(args)</i> takes two data frames: the 'outliers' data frame and the 'links' data frame. And, because <i>makeCircles(args)</i> is not given an existing filename, it also requires the name of the output file from the user (which can include the filetype extension, but the parameter passed into the fileType argument will override). Otherwise, these two functions should behave the same way.
 
 ### Input Format
 

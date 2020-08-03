@@ -9,7 +9,7 @@ subnet <- "132" # Set the subnet we want to check
 #######################
 
 counter <- 0
-imgs <- list.files(path=paste0("www/",date,"/plots"), pattern=".png", full.names=TRUE)
+imgs <- list.files(path=paste0("www/",date), pattern=".png", full.names=TRUE)
 for (i in 1:length(imgs)) {
   if (strcmpi(strsplit(imgs[i],"_")[[1]][2],subnet)) {
     counter <- counter+1
@@ -46,7 +46,7 @@ ui <- fluidPage(
                          # img(src=paste0("/data/netbrane/outliers/2020-05-21/plots/", j, "_132_outliers.png"))
                          # img(src = paste0("https://raw.githubusercontent.com/pvictor/images/master/",
                          #                  sprintf("%04d", i), "plot.png"))
-                         img(src=paste0(date,"/plots/", i, "_", subnet, "_outliers.png"), height="68%", width="68%")
+                         img(src=paste0(date,"/", i, "_", subnet, "_outliers.png"), height="68%", width="68%")
 
         )
       })

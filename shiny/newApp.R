@@ -27,7 +27,7 @@ server <- function(input, output) {
   
   output$subnet_selector <- renderUI({
     sublist <- c()
-    imgs <- list.files(path=paste0("www/",input$date,"/plots"), pattern=".png", full.names=FALSE)
+    imgs <- list.files(path=paste0("www/",input$date,"/"), pattern=".png", full.names=FALSE)
     tmp <- "tmp"
     for (i in 1:length(imgs)) {
       if (str_count(imgs[i], "_") > 1) {
@@ -47,7 +47,7 @@ server <- function(input, output) {
   output$minute_selector <- renderUI({
     currentSubNet <- input$subnet
     counter <- 0
-    imgs <- list.files(path=paste0("www/",input$date,"/plots"), pattern=".png", full.names=TRUE)
+    imgs <- list.files(path=paste0("www/",input$date,"/"), pattern=".png", full.names=TRUE)
     if (strcmp("None",currentSubNet)) {
       for (i in 1:length(imgs)) {
         if (str_count(imgs[i], "_") == 1) {
@@ -86,9 +86,9 @@ server <- function(input, output) {
   
   output$image <- renderUI({
     if (strcmp(input$subnet,"None")) {
-      img(src=paste0(input$date,"/plots/", input$minute, "_outliers.png"), height="80%", width="80%")
+      img(src=paste0(input$date,"/", input$minute, "_outliers.png"), height="80%", width="80%")
     } else {
-      img(src=paste0(input$date,"/plots/", input$minute, "_", input$subnet, "_outliers.png"), height="100%", width="100%")
+      img(src=paste0(input$date,"/", input$minute, "_", input$subnet, "_outliers.png"), height="100%", width="100%")
     }
   })
 }

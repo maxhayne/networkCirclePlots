@@ -7,7 +7,7 @@ A new way to view traffic, building on and optimizing [<i>circlize</i>](https://
   <img src="/images/ntp_3std_1.jpg" width="800" />
 </p>
 <p align="center">
-  Figure 1. Grid-Style Circle Plots
+  Figure 1. Circle Plots in a Small Multiples Grid
 </p>
 
 ### Introduction
@@ -35,7 +35,7 @@ A circle plot allows for visualization of a SIP's activity in a window of time, 
   <img src="/images/ntp_10std_1.jpg" width="800" />
 </p>
 <p align="center">
-  Figure 3. Grid-Style Circle Plots
+  Figure 3. Circle Plots in a Small Multiples Grid
 </p>
 
 Comparing behaviors between SIPs can be done by organizing circle plots in a grid of [small multiples](https://en.wikipedia.org/wiki/Small_multiple) (Tufte et al., 1990). As shown in Figure 3, we propose it is easy to get a gestalt of the types of outliers, which can give insight and build confidence in any subsequent analytics that might be performed. Figure 3's grid is only an example, but <i>networkCirclePlots</i> currently provides three options for within-grid sorting (IP, Cluster, and threatLevel).

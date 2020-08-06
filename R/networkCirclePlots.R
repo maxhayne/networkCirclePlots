@@ -301,6 +301,12 @@ makeCircles <- function(outliers, links, name, fileType="jpg", sortType="ip", or
   checkMask(mask)
   hRatio <- checkHRatio(hRatio)
   checkMax(max)
+  
+  # Let the user know if the outliers data frame and the links data frame don't contain matching SIPs
+  differences <- length(setdiff(links$SIP,outliers$SIP))
+  if (differences != 0) {
+    cat(paste("Warning:", differences, "SIPs in the links data frame don't match the SIPs in the outliers data frame.\n"))
+  }
 
   # Creating generalized variables which can be used in the same context to specify different columns in 'dplyr'
   # Also specifying link colors so that we can allow 'FlowCount' to only use a single color

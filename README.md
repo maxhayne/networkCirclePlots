@@ -7,7 +7,7 @@ A new way to view traffic, building on and optimizing [<i>circlize</i>](https://
   <img src="/images/ntp_3std_1.jpg" width="800" />
 </p>
 <p align="center">
-  Figure 1. Grid-Style Circle Plots
+  Figure 1. Circle Plots in a Small Multiples Grid
 </p>
 
 ### Introduction
@@ -35,7 +35,7 @@ A circle plot allows for visualization of a SIP's activity in a window of time, 
   <img src="/images/ntp_10std_1.jpg" width="800" />
 </p>
 <p align="center">
-  Figure 3. Grid-Style Circle Plots
+  Figure 3. Circle Plots in a Small Multiples Grid
 </p>
 
 Comparing behaviors between SIPs can be done by organizing circle plots in a grid of [small multiples](https://en.wikipedia.org/wiki/Small_multiple) (Tufte et al., 1990). As shown in Figure 3, we propose it is easy to get a gestalt of the types of outliers, which can give insight and build confidence in any subsequent analytics that might be performed. Figure 3's grid is only an example, but <i>networkCirclePlots</i> currently provides three options for within-grid sorting (IP, Cluster, and threatLevel).
@@ -144,7 +144,7 @@ If it is not called from the command-line, but instead loaded using <i>source("/
 
 ### Input Format
 
-<i>makeCirclesFromFile(args)</i> expects an 'outliers' text file with a name in a specific format. The naming scheme is 'EPOCH-MINUTE_SUBNET_outliers.tsv'. The bisecting SUBNET is optional. But, to function correctly, there must be a corresponding <i>links</i> file in the same directory named 'EPOCH-MINUTE_SUBNET_links.tsv'. If a corresponding links file does not exist, the program exits. The <i>outliers</i> file must have this format:
+<i>makeCirclesFromFile(args)</i> expects an 'outliers' text file with a name in a specific format. The naming scheme is 'EPOCH-MINUTE_SUBNET_outliers.tsv'. The bisecting SUBNET is optional. But, to function correctly, there must be a corresponding <i>links</i> file in the same directory named 'EPOCH-MINUTE_SUBNET_links.tsv'. If a corresponding links file does not exist, the program exits. The <i>outliers</i> file must have this format (scroll right on shaded region if 7 columns aren't visible):
 ``` r
 TEND	PROTOCOL	DPORT	SIP		PASS	clusterCenter	threatLevel
 30	UDP		0	1.0.0.0		1	3		399
@@ -154,7 +154,7 @@ TEND	PROTOCOL	DPORT	SIP		PASS	clusterCenter	threatLevel
 30	UDP		0	1.0.0.4		1	3		395
 30	UDP		0	1.0.0.5		1	3		394
 ``` 
-And the <i>links</i> file must have this format: 
+And the <i>links</i> file must have this format (scroll right on shaded region if 8 columns aren't visible): 
 ``` r
 TEND	SIP		DIP		FlowCount	ByteCount	PacketCount	RByteCount	RPacketCount
 0	100.200.300.1	100.200.0.0	0		0		1		0		0

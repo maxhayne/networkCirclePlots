@@ -412,8 +412,11 @@ makeCircles <- function(outliers, links, name, fileType="jpg", sortType="ip", or
   # If fast plotting is enabled, there is a ceiling on how long the plot will take to draw, so pre-allocating
   # plots to cores will improve performance. If fast plotting is disabled, pre-allocating may assign one core
   # an unfair number of complex plots. This will slow the plotting process.
-  if (fast) {mcoptions <- list(preschedule=TRUE)}
-  else {mcoptions <- list(preschedule=FALSE)}
+  if (fast) {
+    mcoptions <- list(preschedule=TRUE)
+  } else {
+    mcoptions <- list(preschedule=FALSE)
+  }
   plot.list <- foreach (i = 1:nrow(outliers), .options.multicore=mcoptions, .verbose=FALSE) %dopar% {
     tempName <- tempfile(pattern = "outlier", tmpdir = tempdir(), fileext = ".png") # generate a temporary filename
     png(tempName, width = 700, height = 700)

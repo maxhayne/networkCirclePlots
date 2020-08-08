@@ -538,11 +538,11 @@ makeCircles <- function(outliers, links, name, fileType="jpg", sortType="ip", or
         # plot y-values in the plotting section
         currentStartPosition <- 1
         if (noResponseTally != 0) {
-          circos.link(2, c(currentStartPosition,currentStartPosition+noResponseTally-1), 1, xRange[2]/2, col=linkColors[2]) # Drawing chord
+          circos.link(2, c(currentStartPosition,currentStartPosition+noResponseTally-1), 1, xRange[2]/2, col=linkColors[2], h.ratio=hRatio) # Drawing chord
         }
         currentStartPosition <- currentStartPosition + noResponseTally
         if (responseTally != 0) {
-          circos.link(2, c(currentStartPosition,currentStartPosition+responseTally-1), 1, xRange[2]/2, col=linkColors[1]) # Drawing chord
+          circos.link(2, c(currentStartPosition,currentStartPosition+responseTally-1), 1, xRange[2]/2, col=linkColors[1], h.ratio=hRatio) # Drawing chord
           # Creating two vectors to represent x and y values for points from the teal chord
           xPointsReduced <- vector(mode="numeric", length = floor(responseTally/4)) 
           yPointsReduced <- vector(mode="numeric", length = floor(responseTally/4))
@@ -554,7 +554,7 @@ makeCircles <- function(outliers, links, name, fileType="jpg", sortType="ip", or
         }
         currentStartPosition <- currentStartPosition + responseTally
         if (maxTally != 0) {
-          circos.link(2, c(currentStartPosition,currentStartPosition+maxTally-1), 1, xRange[2]/2, col="red") # Drawing chord
+          circos.link(2, c(currentStartPosition,currentStartPosition+maxTally-1), 1, xRange[2]/2, col="red", h.ratio=hRatio) # Drawing chord
           # Creating two vectors to represent x and y values for points from the red chord
           xPointsReduced <- vector(mode="numeric", length = floor(maxTally/4)) 
           yPointsReduced <- vector(mode="numeric", length = floor(maxTally/4))

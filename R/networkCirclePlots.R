@@ -427,8 +427,8 @@ makeCircles <- function(outliers, links, name, fileType="jpg", sortType="ip", or
       summarize(meanRDataCount=mean(!!RdataColumn), meanDataCount=mean(!!dataColumn), .groups="keep") %>% 
       arrange(meanRDataCount)
     connectionMapping$sector <- c(2:(nrow(connectionMapping)+1)) # Adding a column which is current row#+1
-    destinationCount <- (connections %>% distinct(DIP) %>% tally())$n[1]
-    taskCount <- (connections %>% tally())$n[1]
+    destinationCount <- nrow(connections %>% distinct(DIP))
+    taskCount <- nrow(connections)
     source <- as.character(outliers$SIP[i]) # Grabbing the source IP
     numSectors <- as.integer(destinationCount + 1)
     
@@ -531,9 +531,9 @@ makeCircles <- function(outliers, links, name, fileType="jpg", sortType="ip", or
         groupedConnections <- setdiff(groupedConnections,noResponseDIPs)
         responseDIPs <- groupedConnections %>% arrange(meanRDataCount) # Renaming for clarity and sorting just in case
 
-        noResponseTally <- (noResponseDIPs %>% tally())$n[1]
-        responseTally <- (responseDIPs %>% tally())$n[1]
-        maxTally <- (maxResponseDIPs %>% tally())$n[1]
+        noResponseTally <- nrow(noResponseDIPs)
+        responseTally <- nrow(responseDIPs)
+        maxTally <- nrow(maxResponseDIPs)
         
         # Draw three chords, one for each data frame. Amber-Teal-Red clockwise. For the Teal and Red sections,
         # plot y-values in the plotting section
@@ -663,7 +663,7 @@ makeCircles <- function(outliers, links, name, fileType="jpg", sortType="ip", or
   circos.clear() # Clearing again, warnings are thrown occasionally 
   
   # Counting the total number of SIPs
-  sourceCount <- (outliers %>% tally())$n[1]
+  sourceCount <- nrow(outliers)
   # Specify rows and columns based on user option
   # bestDimensions function finds grid dimensions whose ratio is closest to 8.5/11
   dimensions <- bestDimensions(sourceCount)

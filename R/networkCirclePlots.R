@@ -438,17 +438,16 @@ makeCircles <- function(outliers, links, name, fileType="jpg", sortType="ip", or
     
     if (fast) {
       if (numSectors > 250) {
-        destSectors <- numSectors-1
-        sector.widths = c(1/(destSectors*2), 1-(1/(destSectors*2)))
-        circos.initialize(factors = c(1,2), xlim = c(1,destSectors), sector.width = sector.widths)
+        sector.widths = c(1/(destinationCount*2), 1-(1/(destinationCount*2)))
+        circos.initialize(factors = c(1,2), xlim = c(1,destinationCount), sector.width = sector.widths)
         circos.trackPlotRegion(ylim = yRange, force.ylim = TRUE, bg.border = "#BDBDBD")
         # Source sector uses #ffff66, which is less intense than "yellow", but slightly more intense than #ffff99
         circos.updatePlotRegion(sector.index = 1, track.index = 1, bg.col = "#ffff66", bg.border = "#BDBDBD")
         y <- c(yRange[1], yRange[2])
-        if (destSectors > 5000) {
+        if (destinationCount > 5000) {
           color <- "grey0"
         } else {
-          greyNumber <- 95 - as.integer(((destSectors-250)/4750)*95) # 2500 will use grey0, 100 will use grey80
+          greyNumber <- 95 - as.integer(((destinationCount-250)/4750)*95) # 2500 will use grey0, 100 will use grey80
           color <- paste0("grey",greyNumber)
         }
         circos.updatePlotRegion(sector.index = 2, track.index = 1, bg.col = color, bg.border = "#BDBDBD")
@@ -539,11 +538,11 @@ makeCircles <- function(outliers, links, name, fileType="jpg", sortType="ip", or
         # plot y-values in the plotting section
         currentStartPosition <- 1
         if (noResponseTally != 0) {
-          circos.link(1, xRange[2]/2, 2, c(currentStartPosition,currentStartPosition+noResponseTally-1), col=linkColors[2]) # Drawing chord
+          circos.link(2, c(currentStartPosition,currentStartPosition+noResponseTally-1), 1, xRange[2]/2, col=linkColors[2]) # Drawing chord
         }
         currentStartPosition <- currentStartPosition + noResponseTally
         if (responseTally != 0) {
-          circos.link(1, xRange[2]/2, 2, c(currentStartPosition,currentStartPosition+responseTally-1), col=linkColors[1]) # Drawing chord
+          circos.link(2, c(currentStartPosition,currentStartPosition+responseTally-1), 1, xRange[2]/2, col=linkColors[1]) # Drawing chord
           # Creating two vectors to represent x and y values for points from the teal chord
           xPointsReduced <- vector(mode="numeric", length = floor(responseTally/4)) 
           yPointsReduced <- vector(mode="numeric", length = floor(responseTally/4))
@@ -555,7 +554,7 @@ makeCircles <- function(outliers, links, name, fileType="jpg", sortType="ip", or
         }
         currentStartPosition <- currentStartPosition + responseTally
         if (maxTally != 0) {
-          circos.link(1, xRange[2]/2, 2, c(currentStartPosition,currentStartPosition+maxTally-1), col="red") # Drawing chord
+          circos.link(2, c(currentStartPosition,currentStartPosition+maxTally-1), 1, xRange[2]/2, col="red") # Drawing chord
           # Creating two vectors to represent x and y values for points from the red chord
           xPointsReduced <- vector(mode="numeric", length = floor(maxTally/4)) 
           yPointsReduced <- vector(mode="numeric", length = floor(maxTally/4))

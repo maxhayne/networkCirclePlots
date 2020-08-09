@@ -380,7 +380,7 @@ makeCircles <- function(outliers, links, name, fileType="jpg", sortType="ip", or
   }
   
   xMiddle <- xRange[1] + ((xRange[2]-xRange[1])/2)
-  
+
   # Find minimum and maximum data received or sent for a row, for y-axis configuration, set yRange
   dataSummary <- links %>% summarize(dMin = min(!!dataColumn), dMax = max(!!dataColumn), rdMin = min(!!RdataColumn), rdMax = max(!!RdataColumn))
   # Set highest maximum
@@ -518,7 +518,7 @@ makeCircles <- function(outliers, links, name, fileType="jpg", sortType="ip", or
         groupedConnections <- connections %>% group_by(DIP) %>% 
           summarize(meanRDataCount=mean(!!RdataColumn), meanDataCount=mean(!!dataColumn), maxRCount=sum(!!RdataColumn>=max), maxCount=sum(!!dataColumn>=max), .groups="keep") %>% 
           arrange(meanRDataCount)
-        
+
         # Creating three data frames -- one for no response from DIP, another for a reponse from DIP less than max,
         # and another for response from DIP greater or equal to max
         maxResponseDIPs <- groupedConnections %>% mutate(maxCombined=maxCount+maxRCount) %>%
@@ -533,16 +533,17 @@ makeCircles <- function(outliers, links, name, fileType="jpg", sortType="ip", or
         noResponseTally <- nrow(noResponseDIPs)
         responseTally <- nrow(responseDIPs)
         maxTally <- nrow(maxResponseDIPs)
+        sourceLocation <- destinationCount/2 # Where to draw chord start location in sector 1
         
         # Draw three chords, one for each data frame. Amber-Teal-Red clockwise. For the Teal and Red sections,
         # plot y-values in the plotting section
         currentStartPosition <- 1
         if (noResponseTally != 0) {
-          circos.link(2, c(currentStartPosition,currentStartPosition+noResponseTally-1), 1, xRange[2]/2, col=linkColors[2], h.ratio=hRatio) # Drawing chord
+          circos.link(2, c(currentStartPosition,currentStartPosition+noResponseTally-1), 1, sourceLocation, col=linkColors[2], h.ratio=hRatio) # Drawing chord
         }
         currentStartPosition <- currentStartPosition + noResponseTally
         if (responseTally != 0) {
-          circos.link(2, c(currentStartPosition,currentStartPosition+responseTally-1), 1, xRange[2]/2, col=linkColors[1], h.ratio=hRatio) # Drawing chord
+          circos.link(2, c(currentStartPosition,currentStartPosition+responseTally-1), 1, sourceLocation, col=linkColors[1], h.ratio=hRatio) # Drawing chord
           # Creating two vectors to represent x and y values for points from the teal chord
           xPointsReduced <- vector(mode="numeric", length = floor(responseTally/4)) 
           yPointsReduced <- vector(mode="numeric", length = floor(responseTally/4))
@@ -554,7 +555,7 @@ makeCircles <- function(outliers, links, name, fileType="jpg", sortType="ip", or
         }
         currentStartPosition <- currentStartPosition + responseTally
         if (maxTally != 0) {
-          circos.link(2, c(currentStartPosition,currentStartPosition+maxTally-1), 1, xRange[2]/2, col="red", h.ratio=hRatio) # Drawing chord
+          circos.link(2, c(currentStartPosition,currentStartPosition+maxTally-1), 1, sourceLocation, col="red", h.ratio=hRatio) # Drawing chord
           # Creating two vectors to represent x and y values for points from the red chord
           xPointsReduced <- vector(mode="numeric", length = floor(maxTally/4)) 
           yPointsReduced <- vector(mode="numeric", length = floor(maxTally/4))
@@ -605,7 +606,7 @@ makeCircles <- function(outliers, links, name, fileType="jpg", sortType="ip", or
         for (j in 1:nrow(connectionMapping)) {
           # Suppressing warning b/c we WANT the text of the destination IP to be printed outside of the plotting region
           suppressMessages(
-            circos.text(x=((xRange[2]-xRange[1])/2)+xRange[1], y=dataMax+ uy(6, "mm"), sector.index=connectionMapping$sector[j], 
+            circos.text(x=xMiddle, y=dataMax+ uy(6, "mm"), sector.index=connectionMapping$sector[j], 
                         labels=maskIP(connectionMapping$DIP[j],mask), cex=1.75, niceFacing=TRUE, facing="bending"))
         }
       }

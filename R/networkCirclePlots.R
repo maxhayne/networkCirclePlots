@@ -2,12 +2,12 @@
 if (!suppressMessages(require("pacman"))) stop("Error: package 'pacman' must be installed.")
 pacman::p_load("pracma","doParallel","circlize","dplyr","bitops", "tictoc",
                "tools","anytime","grid","png","ggplot2","gridExtra","stringr",
-               "vroom","gtable","optparse", install=FALSE)
+               "vroom","gtable","optparse","dtplyr","data.table", install=FALSE)
 
 # Check if they loaded
 isLoaded <- pacman::p_isloaded("pracma","doParallel","circlize","dplyr","bitops", "tictoc",
                    "tools","anytime","grid","png","ggplot2","gridExtra","stringr",
-                   "vroom","gtable","optparse")
+                   "vroom","gtable","optparse","dtplyr","data.table")
 
 # Stop if loading was incomplete
 if (FALSE %in% isLoaded) {
@@ -515,9 +515,22 @@ makeCircles <- function(outliers, links, name, fileType="jpg", sortType="ip", or
           }
         }
       } else { # Draw chords for consecutive and same-colored sectors
-        groupedConnections <- connections %>% group_by(DIP) %>% 
-          summarize(meanRDataCount=mean(!!RdataColumn), meanDataCount=mean(!!dataColumn), maxRCount=sum(!!RdataColumn>=max), maxCount=sum(!!dataColumn>=max), .groups="keep") %>% 
+        
+        # Original dplyr call
+        # groupedConnections <- connections %>% group_by(DIP) %>%
+        #   summarize(meanRDataCount=mean(!!RdataColumn), meanDataCount=mean(!!dataColumn), maxRCount=sum(!!RdataColumn>=max), maxCount=sum(!!dataColumn>=max), .groups="keep") %>%
+        #   arrange(meanRDataCount)
+
+        # dplyr has slowed for summarizing on groups when there are many groups, while data.table is fast
+        # Here we set number of threads to 1 so as to not affect other processes, convert 'connections' data.frame to 
+        # data.table, utilize dtplyr pipes to manipulate data.table using same syntax as dplyr, and convert back
+        # to data.frame. This improves performance by ~30x on certain data.
+        setDTthreads(1)
+        connectionsDT <- data.table(connections)
+        groupedConnectionsDT <- connectionsDT %>% group_by(DIP) %>%
+          summarize(meanRDataCount=mean(!!RdataColumn), meanDataCount=mean(!!dataColumn), maxRCount=sum(!!RdataColumn>=max), maxCount=sum(!!dataColumn>=max), .groups="keep") %>%
           arrange(meanRDataCount)
+        groupedConnections <- as.data.frame(groupedConnectionsDT)
 
         # Creating three data frames -- one for no response from DIP, another for a reponse from DIP less than max,
         # and another for response from DIP greater or equal to max
@@ -533,17 +546,16 @@ makeCircles <- function(outliers, links, name, fileType="jpg", sortType="ip", or
         noResponseTally <- nrow(noResponseDIPs)
         responseTally <- nrow(responseDIPs)
         maxTally <- nrow(maxResponseDIPs)
-        sourceLocation <- destinationCount/2 # Where to draw chord start location in sector 1
-        
+
         # Draw three chords, one for each data frame. Amber-Teal-Red clockwise. For the Teal and Red sections,
         # plot y-values in the plotting section
         currentStartPosition <- 1
         if (noResponseTally != 0) {
-          circos.link(2, c(currentStartPosition,currentStartPosition+noResponseTally-1), 1, sourceLocation, col=linkColors[2], h.ratio=hRatio) # Drawing chord
+          circos.link(2, c(currentStartPosition,currentStartPosition+noResponseTally-1), 1, 1, col=linkColors[2], h.ratio=hRatio) # Drawing chord
         }
         currentStartPosition <- currentStartPosition + noResponseTally
         if (responseTally != 0) {
-          circos.link(2, c(currentStartPosition,currentStartPosition+responseTally-1), 1, sourceLocation, col=linkColors[1], h.ratio=hRatio) # Drawing chord
+          circos.link(2, c(currentStartPosition,currentStartPosition+responseTally-1), 1, 1, col=linkColors[1], h.ratio=hRatio) # Drawing chord
           # Creating two vectors to represent x and y values for points from the teal chord
           xPointsReduced <- vector(mode="numeric", length = floor(responseTally/4)) 
           yPointsReduced <- vector(mode="numeric", length = floor(responseTally/4))
@@ -555,7 +567,7 @@ makeCircles <- function(outliers, links, name, fileType="jpg", sortType="ip", or
         }
         currentStartPosition <- currentStartPosition + responseTally
         if (maxTally != 0) {
-          circos.link(2, c(currentStartPosition,currentStartPosition+maxTally-1), 1, sourceLocation, col="red", h.ratio=hRatio) # Drawing chord
+          circos.link(2, c(currentStartPosition,currentStartPosition+maxTally-1), 1, 1, col="red", h.ratio=hRatio) # Drawing chord
           # Creating two vectors to represent x and y values for points from the red chord
           xPointsReduced <- vector(mode="numeric", length = floor(maxTally/4)) 
           yPointsReduced <- vector(mode="numeric", length = floor(maxTally/4))

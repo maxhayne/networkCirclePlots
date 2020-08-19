@@ -3,12 +3,10 @@ if (!suppressMessages(require("pacman"))) stop("Error: package 'pacman' must be 
 pacman::p_load("pracma","doParallel","circlize","dplyr","bitops", "tictoc",
                "tools","anytime","grid","png","ggplot2","gridExtra","stringr",
                "vroom","gtable","optparse","dtplyr","data.table", install=FALSE)
-
 # Check if they loaded
 isLoaded <- pacman::p_isloaded("pracma","doParallel","circlize","dplyr","bitops", "tictoc",
                    "tools","anytime","grid","png","ggplot2","gridExtra","stringr",
                    "vroom","gtable","optparse","dtplyr","data.table")
-
 # Stop if loading was incomplete
 if (FALSE %in% isLoaded) {
   stop("A necessary package isn't installed. See warning message above from 'pacman'. If no warning message is present, check the top of this script for the package list.")
@@ -487,11 +485,10 @@ makeCircles <- function(outliers, links, name, fileType="jpg", sortType="ip", or
         #   summarize(meanRDataCount=mean(!!RdataColumn), meanDataCount=mean(!!dataColumn), maxRCount=sum(!!RdataColumn>=max), maxCount=sum(!!dataColumn>=max), .groups="keep") %>%
         #   arrange(meanRDataCount)
         
-        # dplyr has slowed for summarizing on groups when there are many groups, while data.table is fast
-        # Here we set number of threads to 1 so as to not affect other processes, convert 'connections' data.frame to 
+        # dplyr has slowed for summarizing on groups when there are many groups, while data.table is fast.
+        # data.table automatically sets DT threads to 1 on fork so we don't have to, convert 'connections' data.frame to 
         # data.table, utilize dtplyr pipes to manipulate data.table using same syntax as dplyr, and convert back
         # to data.frame. This improves performance by ~30x on certain data.
-        setDTthreads(1)
         connectionsDT <- data.table(connections)
         groupedConnectionsDT <- connectionsDT %>% group_by(DIP) %>%
           summarize(meanRDataCount=mean(!!RdataColumn), meanDataCount=mean(!!dataColumn), maxRCount=sum(!!RdataColumn>=max), maxCount=sum(!!dataColumn>=max), .groups="keep") %>%
@@ -530,16 +527,15 @@ makeCircles <- function(outliers, links, name, fileType="jpg", sortType="ip", or
         }
       } else { # Draw chords for consecutive and same-colored sectors
         
-        # Original dplyr call
+        # Original dplyr call, same as replacement
         # groupedConnections <- connections %>% group_by(DIP) %>%
         #   summarize(meanRDataCount=mean(!!RdataColumn), meanDataCount=mean(!!dataColumn), maxRCount=sum(!!RdataColumn>=max), maxCount=sum(!!dataColumn>=max), .groups="keep") %>%
         #   arrange(meanRDataCount)
 
         # dplyr has slowed for summarizing on groups when there are many groups, while data.table is fast
-        # Here we set number of threads to 1 so as to not affect other processes, convert 'connections' data.frame to 
+        # data.table automatically sets DT threads to 1 on fork so we don't have to, convert 'connections' data.frame to 
         # data.table, utilize dtplyr pipes to manipulate data.table using same syntax as dplyr, and convert back
         # to data.frame. This improves performance by ~30x on certain data.
-        setDTthreads(1)
         connectionsDT <- data.table(connections)
         groupedConnectionsDT <- connectionsDT %>% group_by(DIP) %>%
           summarize(meanRDataCount=mean(!!RdataColumn), meanDataCount=mean(!!dataColumn), maxRCount=sum(!!RdataColumn>=max), maxCount=sum(!!dataColumn>=max), .groups="keep") %>%

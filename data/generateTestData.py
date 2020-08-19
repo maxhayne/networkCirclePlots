@@ -39,7 +39,7 @@ RByteCount = "0"
 with open("test_1_links.tsv", "w+") as f:
 	f.write(top)
 	for i in range(len(SIPS)):
-		count = 10 + (1*i)
+		count = 10 + i
 
 		for j in range(count):
 			if (j < 256):

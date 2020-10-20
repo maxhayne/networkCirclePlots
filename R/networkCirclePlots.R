@@ -78,8 +78,8 @@ outlierFileToDataFrame <- function(file) {
   if (!file.exists(file)) {
     stop(paste0("The file ", file, " does not exist."))
   }
-  outliers.columns.all <- c("TEND","PROTOCOL","DPORT","SIP","PASS","clusterCenter","threatLevel")
-  outliers.columns.types <- cols(TEND = "i", PROTOCOL = "c", DPORT = "i", SIP = "c", PASS = "i", clusterCenter = "n", threatLevel = "n")
+  outliers.columns.all <- c("TEND","PROTOCOL","DPORT","SIP","PASS","clusterCenter","threatLevel","linkCount")
+  outliers.columns.types <- cols(TEND = "i", PROTOCOL = "c", DPORT = "i", SIP = "c", PASS = "i", clusterCenter = "n", threatLevel = "n", linkCount = "i")
   outliers <- vroom(file, delim = "\t", quote = '', altrep = TRUE, escape_double = FALSE, col_names = outliers.columns.all, col_types = outliers.columns.types, skip = 1) %>% as.data.frame()
   return(outliers)
 }
@@ -141,6 +141,7 @@ checkOutliersDataFrame <- function(outliers) {
       stop(msg)
     }
   }
+  return("linkCount" %in% columnNames) # Want to know if this outliers dframe has a 'linkCount' column
 }
 
 # Check validity of fileType
@@ -259,7 +260,7 @@ makeCirclesFromFile <- function(outlierFile, name=NULL, fileType="jpg", sortType
   if (is.null(banner)) {
     banner <- tryCatch(
       {
-        anytime(as.integer(strsplit(file, split = "_")[[1]][1])*60)
+        anytime(as.integer(strsplit(file, split = "_")[[1]][1])*60, asUTC = TRUE, tz = "UTC")
       }, error = function(cond) {
         file
       }, warning = function(cond) {
@@ -291,7 +292,7 @@ makeCirclesFromFile <- function(outlierFile, name=NULL, fileType="jpg", sortType
 # Main function for drawing circle plots from data frames
 makeCircles <- function(outliers, links, name, fileType="jpg", sortType="ip", orientation="l", fast=TRUE, mask="/0", dests=FALSE, dataColumn="packet", hRatio=0.7, banner=NULL, subnet=NULL, max=NULL) {
   # Checking parameters for their correct types
-  checkOutliersDataFrame(outliers)
+  hasLinkCount <- checkOutliersDataFrame(outliers)
   checkLinksDataFrame(links)
   fileType <- checkFileType(fileType)
   sortType <- checkSortType(sortType)
@@ -357,7 +358,7 @@ makeCircles <- function(outliers, links, name, fileType="jpg", sortType="ip", or
   if (is.null(banner)) {
     banner <- tryCatch(
       {
-        anytime(as.integer(strsplit(file, split = "_")[[1]][1])*60)
+        anytime(as.integer(strsplit(file, split = "_")[[1]][1])*60, asUTC = TRUE, tz = "UTC")
       }, error = function(cond) {
         file
       }, warning = function(cond) {
@@ -486,7 +487,7 @@ makeCircles <- function(outliers, links, name, fileType="jpg", sortType="ip", or
         #   arrange(meanRDataCount)
         
         # dplyr has slowed for summarizing on groups when there are many groups, while data.table is fast.
-        # data.table automatically sets DT threads to 1 on fork so we don't have to, convert 'connections' data.frame to 
+        # data.table automatically sets DT threads to 1 on fork, so we convert 'connections' data.frame to 
         # data.table, utilize dtplyr pipes to manipulate data.table using same syntax as dplyr, and convert back
         # to data.frame. This improves performance by ~30x on certain data.
         connectionsDT <- data.table(connections)
@@ -527,65 +528,71 @@ makeCircles <- function(outliers, links, name, fileType="jpg", sortType="ip", or
         }
       } else { # Draw chords for consecutive and same-colored sectors
         
-        # Original dplyr call, same as replacement
-        # groupedConnections <- connections %>% group_by(DIP) %>%
-        #   summarize(meanRDataCount=mean(!!RdataColumn), meanDataCount=mean(!!dataColumn), maxRCount=sum(!!RdataColumn>=max), maxCount=sum(!!dataColumn>=max), .groups="keep") %>%
-        #   arrange(meanRDataCount)
-
-        # dplyr has slowed for summarizing on groups when there are many groups, while data.table is fast
-        # data.table automatically sets DT threads to 1 on fork so we don't have to, convert 'connections' data.frame to 
-        # data.table, utilize dtplyr pipes to manipulate data.table using same syntax as dplyr, and convert back
-        # to data.frame. This improves performance by ~30x on certain data.
-        connectionsDT <- data.table(connections)
-        groupedConnectionsDT <- connectionsDT %>% group_by(DIP) %>%
-          summarize(meanRDataCount=mean(!!RdataColumn), meanDataCount=mean(!!dataColumn), maxRCount=sum(!!RdataColumn>=max), maxCount=sum(!!dataColumn>=max), .groups="keep") %>%
-          arrange(meanRDataCount)
-        groupedConnections <- as.data.frame(groupedConnectionsDT)
-
-        # Creating three data frames -- one for no response from DIP, another for a reponse from DIP less than max,
-        # and another for response from DIP greater or equal to max
-        maxResponseDIPs <- groupedConnections %>% mutate(maxCombined=maxCount+maxRCount) %>%
-          filter(maxCombined>0) %>% # DIPs that have values which exceed max
-          arrange(maxCombined) %>%
-          mutate(maxCombined=NULL)
-        groupedConnections <- setdiff(groupedConnections,maxResponseDIPs)
-        noResponseDIPs <- groupedConnections %>% filter(meanRDataCount==0) # Amber plotting
-        groupedConnections <- setdiff(groupedConnections,noResponseDIPs)
-        responseDIPs <- groupedConnections %>% arrange(meanRDataCount) # Renaming for clarity and sorting just in case
-
-        noResponseTally <- nrow(noResponseDIPs)
-        responseTally <- nrow(responseDIPs)
-        maxTally <- nrow(maxResponseDIPs)
-
-        # Draw three chords, one for each data frame. Amber-Teal-Red clockwise. For the Teal and Red sections,
-        # plot y-values in the plotting section
-        currentStartPosition <- 1
-        if (noResponseTally != 0) {
-          circos.link(2, c(currentStartPosition,currentStartPosition+noResponseTally-1), 1, 1, col=linkColors[2], h.ratio=hRatio) # Drawing chord
-        }
-        currentStartPosition <- currentStartPosition + noResponseTally
-        if (responseTally != 0) {
-          circos.link(2, c(currentStartPosition,currentStartPosition+responseTally-1), 1, 1, col=linkColors[1], h.ratio=hRatio) # Drawing chord
-          # Creating two vectors to represent x and y values for points from the teal chord
-          xPointsReduced <- vector(mode="numeric", length = floor(responseTally/4)) 
-          yPointsReduced <- vector(mode="numeric", length = floor(responseTally/4))
-          for (j in 1:length(xPointsReduced)) {
-            xPointsReduced[j] <- (j*4)+currentStartPosition-1
-            yPointsReduced[j] <- responseDIPs$meanRDataCount[j*4]
+        # Check to see if there is a 'linkCount' column. If there is . Just draw a printed number in the center of the circle plot.
+        if (hasLinkCount) {
+          text(0, 0, outliers$linkCount[i], cex = 8)
+        } else { # If not, draw chords normally... sorry for the mess
+        
+          # Original dplyr call, same as replacement
+          # groupedConnections <- connections %>% group_by(DIP) %>%
+          #   summarize(meanRDataCount=mean(!!RdataColumn), meanDataCount=mean(!!dataColumn), maxRCount=sum(!!RdataColumn>=max), maxCount=sum(!!dataColumn>=max), .groups="keep") %>%
+          #   arrange(meanRDataCount)
+  
+          # dplyr has slowed for summarizing on groups when there are many groups, while data.table is fast
+          # data.table automatically sets DT threads to 1 on fork, so we convert 'connections' data.frame to 
+          # data.table, utilize dtplyr pipes to manipulate data.table using same syntax as dplyr, and convert back
+          # to data.frame. This improves performance by ~30x on certain data.
+          connectionsDT <- data.table(connections)
+          groupedConnectionsDT <- connectionsDT %>% group_by(DIP) %>%
+            summarize(meanRDataCount=mean(!!RdataColumn), meanDataCount=mean(!!dataColumn), maxRCount=sum(!!RdataColumn>=max), maxCount=sum(!!dataColumn>=max), .groups="keep") %>%
+            arrange(meanRDataCount)
+          groupedConnections <- as.data.frame(groupedConnectionsDT)
+  
+          # Creating three data frames -- one for no response from DIP, another for a reponse from DIP less than max,
+          # and another for response from DIP greater or equal to max
+          maxResponseDIPs <- groupedConnections %>% mutate(maxCombined=maxCount+maxRCount) %>%
+            filter(maxCombined>0) %>% # DIPs that have values which exceed max
+            arrange(maxCombined) %>%
+            mutate(maxCombined=NULL)
+          groupedConnections <- setdiff(groupedConnections,maxResponseDIPs)
+          noResponseDIPs <- groupedConnections %>% filter(meanRDataCount==0) # Amber plotting
+          groupedConnections <- setdiff(groupedConnections,noResponseDIPs)
+          responseDIPs <- groupedConnections %>% arrange(meanRDataCount) # Renaming for clarity and sorting just in case
+  
+          noResponseTally <- nrow(noResponseDIPs)
+          responseTally <- nrow(responseDIPs)
+          maxTally <- nrow(maxResponseDIPs)
+  
+          # Draw three chords, one for each data frame. Amber-Teal-Red clockwise. For the Teal and Red sections,
+          # plot y-values in the plotting section
+          currentStartPosition <- 1
+          if (noResponseTally != 0) {
+            circos.link(2, c(currentStartPosition,currentStartPosition+noResponseTally-1), 1, 1, col=linkColors[2], h.ratio=hRatio) # Drawing chord
           }
-          circos.lines(x=xPointsReduced, y=yPointsReduced, sector.index=2, col="#7B3294", lwd=6) # Drawing line
-        }
-        currentStartPosition <- currentStartPosition + responseTally
-        if (maxTally != 0) {
-          circos.link(2, c(currentStartPosition,currentStartPosition+maxTally-1), 1, 1, col="red", h.ratio=hRatio) # Drawing chord
-          # Creating two vectors to represent x and y values for points from the red chord
-          xPointsReduced <- vector(mode="numeric", length = floor(maxTally/4)) 
-          yPointsReduced <- vector(mode="numeric", length = floor(maxTally/4))
-          for (j in 1:length(xPointsReduced)) {
-            xPointsReduced[j] <- (j*4)+currentStartPosition-1
-            yPointsReduced[j] <- maxResponseDIPs$meanRDataCount[j*4]
+          currentStartPosition <- currentStartPosition + noResponseTally
+          if (responseTally != 0) {
+            circos.link(2, c(currentStartPosition,currentStartPosition+responseTally-1), 1, 1, col=linkColors[1], h.ratio=hRatio) # Drawing chord
+            # Creating two vectors to represent x and y values for points from the teal chord
+            xPointsReduced <- vector(mode="numeric", length = floor(responseTally/4)) 
+            yPointsReduced <- vector(mode="numeric", length = floor(responseTally/4))
+            for (j in 1:length(xPointsReduced)) {
+              xPointsReduced[j] <- (j*4)+currentStartPosition-1
+              yPointsReduced[j] <- responseDIPs$meanRDataCount[j*4]
+            }
+            circos.lines(x=xPointsReduced, y=yPointsReduced, sector.index=2, col="#7B3294", lwd=6) # Drawing line
           }
-          circos.lines(x=xPointsReduced, y=yPointsReduced, sector.index=2, col="#7B3294", lwd=6) # Drawing line
+          currentStartPosition <- currentStartPosition + responseTally
+          if (maxTally != 0) {
+            circos.link(2, c(currentStartPosition,currentStartPosition+maxTally-1), 1, 1, col="red", h.ratio=hRatio) # Drawing chord
+            # Creating two vectors to represent x and y values for points from the red chord
+            xPointsReduced <- vector(mode="numeric", length = floor(maxTally/4)) 
+            yPointsReduced <- vector(mode="numeric", length = floor(maxTally/4))
+            for (j in 1:length(xPointsReduced)) {
+              xPointsReduced[j] <- (j*4)+currentStartPosition-1
+              yPointsReduced[j] <- maxResponseDIPs$meanRDataCount[j*4]
+            }
+            circos.lines(x=xPointsReduced, y=yPointsReduced, sector.index=2, col="#7B3294", lwd=6) # Drawing line
+          }
         }
       }
     } else { # Draw everything normally, without speedup

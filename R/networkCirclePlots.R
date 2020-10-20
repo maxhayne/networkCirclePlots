@@ -80,7 +80,7 @@ outlierFileToDataFrame <- function(file) {
   }
   outliers.columns.all <- c("TEND","PROTOCOL","DPORT","SIP","PASS","clusterCenter","threatLevel","linkCount")
   outliers.columns.types <- cols(TEND = "i", PROTOCOL = "c", DPORT = "i", SIP = "c", PASS = "i", clusterCenter = "n", threatLevel = "n", linkCount = "i")
-  outliers <- vroom(file, delim = "\t", quote = '', altrep = TRUE, escape_double = FALSE, col_names = outliers.columns.all, col_types = outliers.columns.types, skip = 1) %>% as.data.frame()
+  outliers <- suppressWarnings(vroom(file, delim = "\t", quote = '', altrep = TRUE, escape_double = FALSE, col_names = outliers.columns.all, col_types = outliers.columns.types, skip = 1) %>% as.data.frame())
   return(outliers)
 }
 

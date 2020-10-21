@@ -17,8 +17,8 @@ From ([McAndrew et al., 2019, 51MB](http://selfsynchronize.com/hayne/papers/HICS
 Each circle plot shown below represents a single SIP's activity (indicated by the title/label) over a fixed length of time, and consists of two components, called the “outer track” and the “inner ribbons”. The outer track consists of multiple segments (example shown on the left in Figure 2). The segment to the right of the vertical radial at the top of the circle corresponds to the SIP, and is always highlighted yellow. The remaining segments represent the unique DIPs contacted by that SIP. Inside each of these segments, we plot the time series of non-zero packet flows with the time increasing clockwise in each. The yellow-highlighted segment displays the series of packets sent by the SIP, while all other segments display the series of packets sent back to the SIP by the individual DIPs. The length of time represented in these segments is specified by the time-series of observations (i.e., seconds/minutes/hours/days) in the dataset. Note that each segment displays the same amount of time, and that this is not related to the size of the individual segments - the width of each is determined by how many segments must be drawn, and thus how many DIPs were contacted by the SIP. In cases where many DIPs are contacted (more than 99), the outer track can become densely packed with segments making each very narrow, and thus the individual segments may not be visible.
 
 <p align="center">
-  <img src="/images/CirclePlot_Basic1.png" width="300" />
-  <img src="/images/CirclePlot_Basic2.png" width="300" />
+  <img src="/images/CirclePlot_Basic1.jpg" width="300" />
+  <img src="/images/CirclePlot_Basic2.jpg" width="300" />
 </p>
 <p align="center">
   Figure 2. Basic Circle Plot Layouts
@@ -30,8 +30,8 @@ A circle plot allows for visualization of a SIP's activity in a window of time, 
 
 <!-- Eventually Replace these images with higher-resolution generated attack data. -->
 <p align="middle">
-  <!--<img src="/images/CirclePlot_Grid1.png" width="400" /> -->
-  <!--<img src="/images/CirclePlot_Grid2.png" width="400" /> -->
+  <!--<img src="/images/CirclePlot_Grid1.jpg" width="400" /> -->
+  <!--<img src="/images/CirclePlot_Grid2.jpg" width="400" /> -->
   <img src="/images/ntp_10std_1.jpg" width="800" />
 </p>
 <p align="center">
@@ -47,7 +47,7 @@ Visualization of network data with circle plots can be particularly useful when 
 As an example, an outlier node (SIP) might be identified which has made contact with 3000 DIPs, and has exchanged an average of 100 packets with each. The information about these 100 packets may be encapsulated in 15-30 data rows, each of which corresponds to a point-link pair. Barring optimizations, a plot this complex requires a minimum of 138,000 calls to a generalized <i>draw</i> function (3000 sectors, <img src="https://render.githubusercontent.com/render/math?math=15 * 2 * 3000=90000"> points, and <img src="https://render.githubusercontent.com/render/math?math=15 * 3000=45000"> links). On a Dell PowerEdge R430 (Intel(R) Xeon(R) CPU E5-2640 v4 @ 2.40GHz w/ 40 cores, 256GB RAM), which is the machine this code was developed and tested with, the draw time for Figure 4 is approximately 1400 seconds.
 
 <p align="middle">
-  <img src="/images/3000_dests_slow_1399.png" width="400" />
+  <img src="/images/3000_dests_slow_1399.jpg" width="400" />
 </p>
 <p align="center">
   Figure 4. High Sector-Count Example
@@ -61,7 +61,7 @@ I suggest there are two approaches to increase plotting speed. The first approac
 
 By categorizing plots by the number of calls to <i>draw</i> they require, and labelling that metric the plot's <i>taskCount</i>, one can apply different graphing techniques within a single grid of outliers on a case-by-case basis. While testing draw times for plots with a wide array of <i>taskCounts</i>, it became apparent that 100 tasks took, on average, one second to draw. This was crucial, as it allowed for boundaries between plotting techniques to be adjusted to accomodate a worst-case-scenario under a time constraint. The largest number of outlier SIPs we have detected in a single batch is around 180, and the machine being used to draw the plots has 30 logical processors. Also, because batches from the <i>Netbrane</i> project are generated every minute, and outlier detection and clustering takes 10 seconds, 50 seconds are left for visualization. So, if there are 30 logical processors drawing a maximum of 180 plots in 50 seconds, each plot must require, on average, 7-8 seconds to draw (<img src="https://render.githubusercontent.com/render/math?math=50/(180/30)=8.333"> seconds). I've opted to set the <i>taskCount</i> at which default drawing behavior ends and summarized drawing begins at 700. This, in theory, sets the maximum draw-time for a single circle plot to 7 seconds. 
 
-If a plot contains 700 or more tasks but fewer than 250 sectors, all links between the SIP and a given DIP are replaced with a single [chord](/images/chord-link.png) (wide link), color-coded such that if at any point during the correspondence between the SIP and that particular DIP, the DIP responded to a message from the SIP, the entire link is made teal. Otherwise, it is made amber. This was chosen deliberately, because as a SIP contacts more DIPs, it becomes meaningful to show the proportion of success with which it receives replies; if the SIP is an attacker, how informed is this attacker, and does it know the network well enough to illicit responses from vulnerable nodes? Additionally, inside all segments, individual points are replaced with horizontal lines, whose y-value represents the average PacketCount sent by that IP over the time frame. 
+If a plot contains 700 or more tasks but fewer than 250 sectors, all links between the SIP and a given DIP are replaced with a single [chord](/images/chord-link.jpg) (wide link), color-coded such that if at any point during the correspondence between the SIP and that particular DIP, the DIP responded to a message from the SIP, the entire link is made teal. Otherwise, it is made amber. This was chosen deliberately, because as a SIP contacts more DIPs, it becomes meaningful to show the proportion of success with which it receives replies; if the SIP is an attacker, how informed is this attacker, and does it know the network well enough to illicit responses from vulnerable nodes? Additionally, inside all segments, individual points are replaced with horizontal lines, whose y-value represents the average PacketCount sent by that IP over the time frame. 
 
 If a plot contains over 250 sectors, individual sectors are no longer drawn, as they become too thin discern. Instead, two sectors are drawn: the SIP's sector, and the DIPs sector (which represents all DIPs, and is proportional in size to their share of the total number of sectors). The DIPs sector is then shaded, from light grey (250 sectors) to black (5000 sectors). In so doing, an extra visual cue is added, giving the viewer a sense of the number of DIPs contacted by the SIP. Also, a line spanning the DIPs sector is drawn to show the average number of packets replied with by each DIP. And, because DIPs in all plots are arranged clockwise from smallest to largest average RPacketCount (the number of packets they reply to the SIP with), the line's y-value should only increase in the clockwise direction.
 
@@ -78,8 +78,8 @@ Overall, visual similarity has been prioritized throughout the optimization proc
 
 Type  | 3000 DIPs |  300 DIPs  | 100 DIPs  | 10 DIPs
 :-------------------------:|:-------------------------:|:-------------------------:|:-------------------------: |:-------------------------:
-Slow  |  ![](/images/3000_dests_slow_1399.png) 1399s |  ![](/images/300_dests_slow_50point818.jpg) 50.8s |  ![](/images/100_dests_slow_15point746.png) 15.7s |  ![](/images/10_dests_slow&fast_3point113.png) 3.1s
-Fast  |  ![](/images/3000_dests_fast_3point387.png) 3.4s |  ![](/images/300_dests_fast_2point357.png) 2.4s |  ![](/images/100_dests_fast_3point931.png) 3.9s |  ![](/images/10_dests_slow&fast_3point113.png) 3.1s
+Slow  |  ![](/images/3000_dests_slow_1399.jpg) 1399s |  ![](/images/300_dests_slow_50point818.jpg) 50.8s |  ![](/images/100_dests_slow_15point746.jpg) 15.7s |  ![](/images/10_dests_slow&fast_3point113.jpg) 3.1s
+Fast  |  ![](/images/3000_dests_fast_3point387.jpg) 3.4s |  ![](/images/300_dests_fast_2point357.jpg) 2.4s |  ![](/images/100_dests_fast_3point931.jpg) 3.9s |  ![](/images/10_dests_slow&fast_3point113.jpg) 3.1s
 
 <p align="center">
   Figure 5. Side-by-Side Comparison Of <i>Fast</i> and <i>Slow</i> Plots w/ Draw Times

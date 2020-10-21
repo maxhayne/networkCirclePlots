@@ -78,7 +78,7 @@ Overall, visual similarity has been prioritized throughout the optimization proc
 
 Type  | 3000 DIPs |  300 DIPs  | 100 DIPs  | 10 DIPs
 :-------------------------:|:-------------------------:|:-------------------------:|:-------------------------: |:-------------------------:
-Slow  |  ![](/images/3000_dests_slow_1399.png) 1399s |  ![](/images/300_dests_slow_50point818.png) 50.8s |  ![](/images/100_dests_slow_15point746.png) 15.7s |  ![](/images/10_dests_slow&fast_3point113.png) 3.1s
+Slow  |  ![](/images/3000_dests_slow_1399.png) 1399s |  ![](/images/300_dests_slow_50point818.jpg) 50.8s |  ![](/images/100_dests_slow_15point746.png) 15.7s |  ![](/images/10_dests_slow&fast_3point113.png) 3.1s
 Fast  |  ![](/images/3000_dests_fast_3point387.png) 3.4s |  ![](/images/300_dests_fast_2point357.png) 2.4s |  ![](/images/100_dests_fast_3point931.png) 3.9s |  ![](/images/10_dests_slow&fast_3point113.png) 3.1s
 
 <p align="center">

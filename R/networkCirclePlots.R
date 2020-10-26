@@ -78,8 +78,8 @@ outlierFileToDataFrame <- function(file) {
   if (!file.exists(file)) {
     stop(paste0("The file ", file, " does not exist."))
   }
-  outliers.columns.all <- c("TEND","PROTOCOL","DPORT","SIP","PASS","clusterCenter","threatLevel","linkCount")
-  outliers.columns.types <- cols(TEND = "i", PROTOCOL = "c", DPORT = "i", SIP = "c", PASS = "i", clusterCenter = "n", threatLevel = "n", linkCount = "i")
+  outliers.columns.all <- c("TEND","PROTOCOL","DPORT","SIP","PASS","clusterCenter","threatLevel","uniqueIPCount")
+  outliers.columns.types <- cols(TEND = "i", PROTOCOL = "c", DPORT = "i", SIP = "c", PASS = "i", clusterCenter = "n", threatLevel = "n", uniqueIPCount = "i")
   outliers <- suppressWarnings(vroom(file, delim = "\t", quote = '', altrep = TRUE, escape_double = FALSE, col_names = outliers.columns.all, col_types = outliers.columns.types, skip = 1) %>% as.data.frame())
   return(outliers)
 }
@@ -141,7 +141,7 @@ checkOutliersDataFrame <- function(outliers) {
       stop(msg)
     }
   }
-  return("linkCount" %in% columnNames) # Want to know if this outliers dframe has a 'linkCount' column
+  return("uniqueIPCount" %in% columnNames) # Want to know if this outliers dframe has a 'uniqueIPCount' column
 }
 
 # Check validity of fileType
@@ -292,7 +292,7 @@ makeCirclesFromFile <- function(outlierFile, name=NULL, fileType="jpg", sortType
 # Main function for drawing circle plots from data frames
 makeCircles <- function(outliers, links, name, fileType="jpg", sortType="ip", orientation="l", fast=TRUE, mask="/0", dests=FALSE, dataColumn="packet", hRatio=0.7, banner=NULL, subnet=NULL, max=NULL) {
   # Checking parameters for their correct types
-  hasLinkCount <- checkOutliersDataFrame(outliers)
+  hasUniqueIPCount <- checkOutliersDataFrame(outliers)
   checkLinksDataFrame(links)
   fileType <- checkFileType(fileType)
   sortType <- checkSortType(sortType)
@@ -420,23 +420,29 @@ makeCircles <- function(outliers, links, name, fileType="jpg", sortType="ip", or
     tempName <- tempfile(pattern = "outlier", tmpdir = tempdir(), fileext = ".png") # generate a temporary filename
     png(tempName, width = 700, height = 700)
     
-    # Gathering all rows from which data was transferred to or from the source IP, sorted by destination IP
-    connections <- links %>% filter(SIP == outliers$SIP[i]) %>% arrange(DIP)
-    connectionMapping <- connections %>% group_by(DIP) %>% 
-      summarize(meanRDataCount=mean(!!RdataColumn), meanDataCount=mean(!!dataColumn), .groups="keep") %>% 
-      arrange(meanRDataCount)
-    connectionMapping$sector <- c(2:(nrow(connectionMapping)+1)) # Adding a column which is current row#+1
-    destinationCount <- nrow(connections %>% distinct(DIP))
-    taskCount <- nrow(connections)
-    source <- as.character(outliers$SIP[i]) # Grabbing the source IP
-    numSectors <- as.integer(destinationCount + 1)
+    if (hasUniqueIPCount && outliers$uniqueIPCount[i] > 250) {
+      # There will be no links in the data file, so don't bother looking, just set some variables
+      destinationCount <- outliers$uniqueIPCount[i]
+      source <- as.character(outliers$SIP[i])
+      taskCount <- 1
+    } else {
+      # Gathering all rows from which data was transferred to or from the source IP, sorted by destination IP
+      connections <- links %>% filter(SIP == outliers$SIP[i]) %>% arrange(DIP)
+      connectionMapping <- connections %>% group_by(DIP) %>% 
+        summarize(meanRDataCount=mean(!!RdataColumn), meanDataCount=mean(!!dataColumn), .groups="keep") %>% 
+        arrange(meanRDataCount)
+      connectionMapping$sector <- c(2:(nrow(connectionMapping)+1)) # Adding a column which is current row#+1
+      destinationCount <- nrow(connections %>% distinct(DIP))
+      taskCount <- nrow(connections)
+      source <- as.character(outliers$SIP[i]) # Grabbing the source IP
+    }
     
     # Do some formatting for circlize
     par(mar = c(0.5, 0.5, 1, 0.5), cex.main=1.9)
-    circos.par(cell.padding = c(0, 0, 0, 0), start.degree = 90, gap.degree = min(1, 360/(2*numSectors)))
+    circos.par(cell.padding = c(0, 0, 0, 0), start.degree = 90, gap.degree = min(1, 360/(2*(destinationCount+1))))
     
     if (fast) {
-      if (numSectors > 250) {
+      if (destinationCount > 250) {
         sector.widths = c(1/(destinationCount*2), 1-(1/(destinationCount*2)))
         circos.initialize(factors = c(1,2), xlim = c(1,destinationCount), sector.width = sector.widths)
         circos.trackPlotRegion(ylim = yRange, force.ylim = TRUE, bg.border = "#BDBDBD")
@@ -451,14 +457,14 @@ makeCircles <- function(outliers, links, name, fileType="jpg", sortType="ip", or
         }
         circos.updatePlotRegion(sector.index = 2, track.index = 1, bg.col = color, bg.border = "#BDBDBD")
       } else {
-        factors <- c(1:numSectors)
+        factors <- c(1:(destinationCount+1))
         circos.initialize(factors = factors, xlim = xRange)
         circos.trackPlotRegion(ylim = yRange, force.ylim = TRUE, bg.border = "#BDBDBD")
         # Source sector uses #ffff66, which is less intense than "yellow", but slightly more intense than #ffff99
         circos.updatePlotRegion(sector.index = 1, track.index = 1, bg.col = "#ffff66", bg.border = "#BDBDBD")
       }
       
-      if (numSectors <= 99 && taskCount < 700) { # Draw normally
+      if (destinationCount <= 99 && taskCount < 700) { # Draw normally
         for (j in 1:nrow(connections)) {
           currentFactor <- (connectionMapping %>% filter(DIP==connections$DIP[j]))$sector[1]
           if (connections[[dataColumn]][j] >= max || connections[[RdataColumn]][j] >= max) {
@@ -479,7 +485,7 @@ makeCircles <- function(outliers, links, name, fileType="jpg", sortType="ip", or
             }
           }
         }
-      } else if (numSectors <= 250) { # Draw chords for each sector
+      } else if (destinationCount <= 250) { # Draw chords for each sector
         
         # Original dplyr call
         # groupedConnections <- connections %>% group_by(DIP) %>%
@@ -528,10 +534,10 @@ makeCircles <- function(outliers, links, name, fileType="jpg", sortType="ip", or
         }
       } else { # Draw chords for consecutive and same-colored sectors
         
-        # Check to see if there is a 'linkCount' column. If there is . Just draw a printed number in the center of the circle plot.
-        if (hasLinkCount) {
-          text(0, 0, outliers$linkCount[i], cex = 8)
-        } else { # If not, draw chords normally... sorry for the mess
+        # Check to see if there is a 'uniqueIPCount' column. If there is . Just draw a printed number in the center of the circle plot.
+        if (hasUniqueIPCount) {
+          text(0, 0, destinationCount, cex = 8)
+        } else { # If not, draw chords normally...
         
           # Original dplyr call, same as replacement
           # groupedConnections <- connections %>% group_by(DIP) %>%
@@ -596,32 +602,38 @@ makeCircles <- function(outliers, links, name, fileType="jpg", sortType="ip", or
         }
       }
     } else { # Draw everything normally, without speedup
-      factors <- c(1:numSectors)
+      factors <- c(1:(destinationCount+1))
       circos.initialize(factors = factors, xlim = xRange)
       circos.trackPlotRegion(ylim = yRange, force.ylim = TRUE, bg.border = "#BDBDBD")
       # Source sector uses #ffff66, which is less intense than "yellow", but slightly more intense than #ffff99
       circos.updatePlotRegion(sector.index = 1, track.index = 1, bg.col = "#ffff66", bg.border = "#BDBDBD")
       # Just do a for loop on the connectionMapping and then filter connections based on that
-      for (j in 1:nrow(connectionMapping)) {
-        currentSector <- connectionMapping$sector[j]
-        dipConnections <- connections %>% filter(DIP==connectionMapping$DIP[j])
-        connections <- connections %>% filter(DIP != connectionMapping$DIP[j])
-        for (k in 1:nrow(dipConnections)) {
-          if (dipConnections[[dataColumn]][k] >= max || dipConnections[[RdataColumn]][k] >= max) {
-            circos.points(x = dipConnections$TEND[k], y = dipConnections[[dataColumn]][k], sector.index=1, col="#7B3294", pch=19)
-            if (dipConnections[[dataColumn]][k] >= max) {suppressMessages(circos.points(x = dipConnections$TEND[k], y = dataMax + uy(2, "mm"), sector.index=1, col="red", pch=19))}
-            if (dipConnections[[RdataColumn]][k] != 0) {
-              circos.points(x = dipConnections$TEND[k], y = dipConnections[[RdataColumn]][k], sector.index=currentSector, col="#7B3294", pch=19)
-              if (dipConnections[[RdataColumn]][k] >= max) {suppressMessages(circos.points(x = dipConnections$TEND[k], y = dataMax + uy(2, "mm"), sector.index=currentSector, col="red", pch=19))}
-            }
-            circos.link(currentSector, dipConnections$TEND[k], 1, dipConnections$TEND[k], lwd=2, col="red", h.ratio=hRatio)
-          } else {
-            circos.points(x = dipConnections$TEND[k], y = dipConnections[[dataColumn]][k], sector.index=1, col="#7B3294", pch=19)
-            if (dipConnections[[RdataColumn]][k] != 0) {
-              circos.points(x = dipConnections$TEND[k], y = dipConnections[[RdataColumn]][k], sector.index=currentSector, col="#7B3294", pch=19)
-              circos.link(currentSector, dipConnections$TEND[k], 1, dipConnections$TEND[k], col=linkColors[1], h.ratio=hRatio)
+      
+      # Check to see if there is a 'uniqueIPCount' column. If there is, draw a printed number in the center of the circle plot.
+      if (hasUniqueIPCount && outliers$uniqueIPCount[i] > 250) {
+        text(0, 0, destinationCount, cex = 8)
+      } else { # If not, draw links normally...
+        for (j in 1:nrow(connectionMapping)) {
+          currentSector <- connectionMapping$sector[j]
+          dipConnections <- connections %>% filter(DIP==connectionMapping$DIP[j])
+          connections <- connections %>% filter(DIP != connectionMapping$DIP[j])
+          for (k in 1:nrow(dipConnections)) {
+            if (dipConnections[[dataColumn]][k] >= max || dipConnections[[RdataColumn]][k] >= max) {
+              circos.points(x = dipConnections$TEND[k], y = dipConnections[[dataColumn]][k], sector.index=1, col="#7B3294", pch=19)
+              if (dipConnections[[dataColumn]][k] >= max) {suppressMessages(circos.points(x = dipConnections$TEND[k], y = dataMax + uy(2, "mm"), sector.index=1, col="red", pch=19))}
+              if (dipConnections[[RdataColumn]][k] != 0) {
+                circos.points(x = dipConnections$TEND[k], y = dipConnections[[RdataColumn]][k], sector.index=currentSector, col="#7B3294", pch=19)
+                if (dipConnections[[RdataColumn]][k] >= max) {suppressMessages(circos.points(x = dipConnections$TEND[k], y = dataMax + uy(2, "mm"), sector.index=currentSector, col="red", pch=19))}
+              }
+              circos.link(currentSector, dipConnections$TEND[k], 1, dipConnections$TEND[k], lwd=2, col="red", h.ratio=hRatio)
             } else {
-              circos.link(currentSector, dipConnections$TEND[k], 1, dipConnections$TEND[k], col=linkColors[2], h.ratio=hRatio)
+              circos.points(x = dipConnections$TEND[k], y = dipConnections[[dataColumn]][k], sector.index=1, col="#7B3294", pch=19)
+              if (dipConnections[[RdataColumn]][k] != 0) {
+                circos.points(x = dipConnections$TEND[k], y = dipConnections[[RdataColumn]][k], sector.index=currentSector, col="#7B3294", pch=19)
+                circos.link(currentSector, dipConnections$TEND[k], 1, dipConnections$TEND[k], col=linkColors[1], h.ratio=hRatio)
+              } else {
+                circos.link(currentSector, dipConnections$TEND[k], 1, dipConnections$TEND[k], col=linkColors[2], h.ratio=hRatio)
+              }
             }
           }
         }

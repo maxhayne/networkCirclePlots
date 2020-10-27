@@ -167,7 +167,7 @@ checkOrientation <- function(orientation) {
 
 # Check validity of sortType
 checkSortType <- function(sortType) {
-  types <- c("cluster", "threat", "ip")
+  types <- c("cluster", "threat", "ip", "pass")
   lowerSortType <- tolower(sortType)
   if (!(lowerSortType %in% types)) {
     msg <- paste0("The sortType must be one of the following: ", paste(types, collapse=","), ".")
@@ -334,7 +334,7 @@ makeCircles <- function(outliers, links, name, fileType="jpg", sortType="ip", or
   # If sorting on threat, that is the only column we can sort on
   if (strcmp(sortType,"threat")) {
     outliers <- outliers %>% arrange(desc(threatLevel))
-  } else { # If not sorting on threat, we will sort on IP, but still need to check if being asked to sort on cluster
+  } else { # If not sorting on threat, we will sort on IP, but still need to check if being asked to sort on cluster or pass
     ipLongList <- c(nrow(outliers)) # Create vector for storing converted IP addresses
     for (i in 1:nrow(outliers)) {
       ipLong <- ip2long(as.character(outliers$SIP[i]))
@@ -343,6 +343,8 @@ makeCircles <- function(outliers, links, name, fileType="jpg", sortType="ip", or
     outliers$ipLong <- ipLongList
     if (strcmp(sortType,"cluster")) { # sort on cluster first, then on IP
       outliers <- outliers %>% arrange(desc(clusterCenter),ipLong)
+    } else if (strcmp(sortType,"pass")) { # sort on pass first, then on IP
+      outliers <- outliers %>% arrange(PASS,ipLong)
     } else { # only sort on IP, which is the default behavior
       outliers <- outliers %>% arrange(ipLong)
     }
@@ -693,7 +695,11 @@ makeCircles <- function(outliers, links, name, fileType="jpg", sortType="ip", or
       threat <- outliers$threatLevel[i]
       modTitle <- paste0(source, " -- ", signif(threat, digits = 2))
       title(main=modTitle, line=-0.3)
-    } else {
+    } else if (strcmp(sortType,"pass")) {
+      pass <- outliers$PASS[i]
+      modTitle <- paste0(source, " -- ", pass)
+      title(main=modTitle, line=-0.3)
+    }else {
       title(main=source, line=-0.3)
     }
     
@@ -733,14 +739,18 @@ makeCircles <- function(outliers, links, name, fileType="jpg", sortType="ip", or
   arrangedGrob <- arrangeGrob(grobs=plot.list, nrow=rows, ncol=cols, top=textGrob(as.character(banner), gp=gpar(fontsize=8)))
   #gtable_show_layout(arrangedGrob)
   
-  # Drawing vertical lines between plots to demarcate clusters
-  if (strcmp(sortType,"cluster")) {
-    clusters <- outliers %>% group_by(clusterCenter) %>% tally() %>% arrange(desc(clusterCenter))
-    iterations <- nrow(clusters)-1 # Only need to draw n-1 separators
+  # Drawing vertical lines between plots to demarcate clusters or passes
+  if (strcmp(sortType,"cluster") || strcmp(sortType,"pass")) {
+    if (strcmp(sortType,"cluster")) {
+      bars <- outliers %>% group_by(clusterCenter) %>% tally() %>% arrange(desc(clusterCenter))
+    } else {
+      bars <- outliers %>% group_by(PASS) %>% tally() %>% arrange(PASS)
+    }
+    iterations <- nrow(bars)-1 # Only need to draw n-1 separators
     if (iterations > 0) {
       position <- 0
       for (i in 1:iterations) {
-        position <- position + clusters$n[i]
+        position <- position + bars$n[i]
         row <- as.integer(position/cols) + 2
         column <- position - ((row-2)*cols) + 1
         arrangedGrob <- gtable_add_grob(arrangedGrob, 
@@ -797,7 +807,7 @@ if (sys.nframe() == 0L) {
     make_option(c("-t", "--type"), type="character", default="jpg", 
                 help="file type of output {png,jpg,pdf} [default= %default]", metavar="file_ext"),
     make_option(c("-s", "--sort"), type="character", default="ip", 
-                help="sort type of output {ip,cluster,threat} [default= %default]", metavar="string"),
+                help="sort type of output {ip,cluster,threat,pass} [default= %default]", metavar="string"),
     make_option(c("-a", "--aspect-ratio"), type="character", default="l", 
                 help="aspect ratio of output page {l=landscape,p=portrait} [default= %default]", metavar="character"),
     make_option(c("-f", "--fast"), type="logical", action="store_true", default=FALSE,
@@ -852,8 +862,10 @@ if (sys.nframe() == 0L) {
     sortType <- "cluster"
   } else if (strcmpi(opt$sort,"threat")) {
     sortType <- "threat"
+  } else if (strcmpi(opt$sort,"pass")) {
+    sortType <- "pass"
   } else {
-    stop("The sort option must be one of the three: 'ip', 'cluster', or 'threat'.")
+    stop("The sort option must be one of the three: 'ip', 'cluster', 'threat', or 'pass'.")
   }
   
   # Logic for aspect ratio

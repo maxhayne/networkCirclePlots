@@ -90,7 +90,7 @@ linksFileToDataFrame <- function(file) {
     stop(paste0("The file ", file, " does not exist."))
   }
   links.columns.all <- c("TEND","SIP","DIP","FlowCount","ByteCount","PacketCount","RByteCount","RPacketCount")
-  links.columns.types <- cols(TEND = "i", SIP = "c", DIP = "c", FlowCount = "i", ByteCount = "i", PacketCount = "i", RByteCount = "i", RPacketCount = "i")
+  links.columns.types <- cols(TEND = "i", SIP = "c", DIP = "c", FlowCount = "d", ByteCount = "n", PacketCount = "n", RByteCount = "n", RPacketCount = "n")
   links <- vroom(file, delim = "\t", quote = '', altrep = TRUE, escape_double = FALSE, col_names = links.columns.all, col_types = links.columns.types, skip = 1) %>% as.data.frame()
   return(links)
 }
@@ -106,7 +106,7 @@ checkLinksDataFrame <- function(links) {
   }
   positions <- which(correctColumnNames %in% columnNames)
   columnTypes <- as.vector(sapply(links, class))
-  correctColumnTypes <- c("integer", "character", "character", "integer", "integer", "integer", "integer", "integer")
+  correctColumnTypes <- c("integer", "character", "character", "numeric", "numeric", "numeric", "numeric", "numeric")
   for (i in 1:length(correctColumnTypes)) {
     if (!strcmp(correctColumnTypes[i], columnTypes[positions[i]])) {
       msg <- paste0("In the 'links' data frame: column '", columnNames[positions[i]], "' must be of type '", correctColumnTypes[i], "'. It is of type '", columnTypes[positions[i]],"'.")
@@ -291,6 +291,7 @@ makeCirclesFromFile <- function(outlierFile, name=NULL, fileType="jpg", sortType
 
 # Main function for drawing circle plots from data frames
 makeCircles <- function(outliers, links, name, fileType="jpg", sortType="ip", orientation="l", fast=TRUE, mask="/0", dests=FALSE, dataColumn="packet", hRatio=0.7, banner=NULL, subnet=NULL, max=NULL) {
+  
   # Checking parameters for their correct types
   hasUniqueIPCount <- checkOutliersDataFrame(outliers)
   checkLinksDataFrame(links)
@@ -418,10 +419,11 @@ makeCircles <- function(outliers, links, name, fileType="jpg", sortType="ip", or
   } else {
     mcoptions <- list(preschedule=FALSE)
   }
+  
   plot.list <- foreach (i = 1:nrow(outliers), .options.multicore=mcoptions, .verbose=FALSE) %dopar% {
     tempName <- tempfile(pattern = "outlier", tmpdir = tempdir(), fileext = ".png") # generate a temporary filename
     png(tempName, width = 700, height = 700)
-    
+
     if (hasUniqueIPCount && outliers$uniqueIPCount[i] > 250) {
       # There will be no links in the data file, so don't bother looking, just set some variables
       destinationCount <- outliers$uniqueIPCount[i]
@@ -488,7 +490,6 @@ makeCircles <- function(outliers, links, name, fileType="jpg", sortType="ip", or
           }
         }
       } else if (destinationCount <= 250) { # Draw chords for each sector
-        
         # Original dplyr call
         # groupedConnections <- connections %>% group_by(DIP) %>%
         #   summarize(meanRDataCount=mean(!!RdataColumn), meanDataCount=mean(!!dataColumn), maxRCount=sum(!!RdataColumn>=max), maxCount=sum(!!dataColumn>=max), .groups="keep") %>%
@@ -503,10 +504,11 @@ makeCircles <- function(outliers, links, name, fileType="jpg", sortType="ip", or
           summarize(meanRDataCount=mean(!!RdataColumn), meanDataCount=mean(!!dataColumn), maxRCount=sum(!!RdataColumn>=max), maxCount=sum(!!dataColumn>=max), .groups="keep") %>%
           arrange(meanRDataCount)
         groupedConnections <- as.data.frame(groupedConnectionsDT)
-        
+
         # Want chord to not take up the full xRange, but, 90%, looks less cluttered
-        chordMax <- xRange[2]*0.95
-        chordMin <- xRange[1] + xRange[2]*0.05
+        xWidth <- xRange[2]-xRange[1]
+        chordMax <- xRange[1] + xWidth*0.9
+        chordMin <- xRange[1] + xWidth*0.1
         chordRange <- c(chordMin, chordMax)
         for (j in 1:nrow(groupedConnections)) {
           currentSector <- (connectionMapping %>% filter(DIP==groupedConnections$DIP[j]))$sector[1]
@@ -540,7 +542,6 @@ makeCircles <- function(outliers, links, name, fileType="jpg", sortType="ip", or
         if (hasUniqueIPCount) {
           text(0, 0, destinationCount, cex = 8)
         } else { # If not, draw chords normally...
-        
           # Original dplyr call, same as replacement
           # groupedConnections <- connections %>% group_by(DIP) %>%
           #   summarize(meanRDataCount=mean(!!RdataColumn), meanDataCount=mean(!!dataColumn), maxRCount=sum(!!RdataColumn>=max), maxCount=sum(!!dataColumn>=max), .groups="keep") %>%
@@ -555,7 +556,7 @@ makeCircles <- function(outliers, links, name, fileType="jpg", sortType="ip", or
             summarize(meanRDataCount=mean(!!RdataColumn), meanDataCount=mean(!!dataColumn), maxRCount=sum(!!RdataColumn>=max), maxCount=sum(!!dataColumn>=max), .groups="keep") %>%
             arrange(meanRDataCount)
           groupedConnections <- as.data.frame(groupedConnectionsDT)
-  
+
           # Creating three data frames -- one for no response from DIP, another for a reponse from DIP less than max,
           # and another for response from DIP greater or equal to max
           maxResponseDIPs <- groupedConnections %>% mutate(maxCombined=maxCount+maxRCount) %>%
@@ -570,7 +571,7 @@ makeCircles <- function(outliers, links, name, fileType="jpg", sortType="ip", or
           noResponseTally <- nrow(noResponseDIPs)
           responseTally <- nrow(responseDIPs)
           maxTally <- nrow(maxResponseDIPs)
-  
+          
           # Draw three chords, one for each data frame. Amber-Teal-Red clockwise. For the Teal and Red sections,
           # plot y-values in the plotting section
           currentStartPosition <- 1
